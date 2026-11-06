@@ -1,0 +1,17 @@
+# Live Stream By Suc
+
+## Chạy thử
+- Đưa toàn bộ thư mục lên hosting HTTPS (ví dụ GitHub Pages).
+- Mở `Studio_Livestream.html`.
+- Cho phép quyền camera/micro khi trình duyệt hỏi.
+- Cài PWA từ menu trình duyệt nếu trình duyệt hỗ trợ.
+
+## Những gì đã được chỉnh
+- Bổ sung metadata PWA, manifest tương đối theo thư mục triển khai, icon PNG và ảnh screenshot có thật.
+- Thêm đăng ký Service Worker và cache app shell, cập nhật cache theo phiên bản.
+- Bổ sung bố cục responsive cơ bản cho màn hình điện thoại.
+- Dọn camera/micro/chia sẻ màn hình khi tắt trang; dừng track micro đúng cách.
+- Hiển thị chat bằng `textContent` để tránh chèn HTML từ nội dung người dùng.
+
+## Giới hạn quan trọng
+Nút BẮT ĐẦU PHÁT trong bản web hiện tại chỉ bật trạng thái/timer xem trước tại giao diện. Ứng dụng chưa mã hóa và gửi video/âm thanh tới YouTube, Facebook, Twitch hoặc RTMP. Trình duyệt di động cũng hạn chế chia sẻ màn hình. Muốn phát trực tiếp thật cần tích hợp WebRTC/RTMP gateway hoặc ứng dụng native và máy chủ phát.

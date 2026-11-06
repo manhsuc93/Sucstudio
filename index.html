@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="description" content="Livestream Studio giúp xem trước camera, tạo banner, logo và chữ chạy cho buổi phát trực tiếp.">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Livestream Studio">
+  <title>Livestream Studio</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <style>
+    :root{color-scheme:dark;--bg:#0f172a;--panel:#1e293b;--line:#334155;--blue:#2563eb}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:#e2e8f0;font:15px system-ui,-apple-system,Segoe UI,sans-serif}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:2}
+    h1{font-size:18px;margin:0} .tag{font-size:11px;color:#fca5a5;border:1px solid #7f1d1d;border-radius:20px;padding:3px 8px}
+    button,select,input{font:inherit} button{border:0;border-radius:9px;padding:10px 13px;background:#334155;color:white;cursor:pointer}
+    button.primary{background:#dc2626;font-weight:700} button.blue{background:var(--blue)}
+    main{max-width:1200px;margin:auto;padding:18px;display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}
+    .preview{background:#020617;border-radius:12px;overflow:hidden;aspect-ratio:16/9;display:grid;place-items:center;position:relative}
+    video{width:100%;height:100%;object-fit:contain;background:#020617} .hint{position:absolute;bottom:12px;left:12px;background:#0009;padding:7px 10px;border-radius:8px;font-size:12px}
+    .controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.field{display:grid;gap:6px;margin:12px 0}.field label{font-size:13px;color:#cbd5e1}
+    input[type=text],select{width:100%;background:#0f172a;color:white;border:1px solid var(--line);border-radius:8px;padding:10px}
+    input[type=color]{width:45px;height:38px;border:0;background:none} input[type=file]{max-width:100%;font-size:12px}
+    .muted{color:#94a3b8;font-size:13px;line-height:1.5}.status{font-size:12px;color:#fca5a5;margin-left:8px}
+    .banner{position:absolute;left:4%;bottom:10%;max-width:90%;background:#2563eb;padding:10px 16px;border-radius:5px;font-weight:700;display:none}
+    .banner small{display:block;font-weight:400;margin-top:4px}
+    #ticker{position:absolute;bottom:0;left:0;right:0;background:#020617dd;color:#fbbf24;padding:8px;white-space:nowrap;overflow:hidden;display:none}
+    .notice{background:#0f172a;border:1px solid var(--line);padding:11px;border-radius:9px;margin-top:12px}
+    @media(max-width:800px){main{grid-template-columns:1fr;padding:10px}header{padding:12px} .panel{padding:13px}}
+  </style>
+</head>
+<body>
+<header>
+  <div><h1>📹 Livestream Studio <span class="tag">PWA</span></h1><div class="muted">Bảng điều khiển camera và overlay</div></div>
+  <button class="primary" id="liveBtn">BẮT ĐẦU PHÁT</button>
+</header>
+<main>
+  <section class="panel">
+    <h2 style="margin:0 0 12px">Màn hình xem trước</h2>
+    <div class="preview">
+      <video id="camera" autoplay playsinline muted></video>
+      <div class="hint" id="previewHint">Camera chưa bật</div>
+      <div class="banner" id="banner"><span id="bannerTitle">LIVESTREAM TRỰC TIẾP</span><small id="bannerSub">Cảm ơn bạn đang theo dõi!</small></div>
+      <div id="ticker">🔥 Chào mừng bạn đến với buổi livestream! 🔥</div>
+    </div>
+    <div class="controls">
+      <button class="blue" id="cameraBtn">Bật camera</button>
+      <button id="flipBtn">Đổi camera</button>
+      <button id="bannerBtn">Hiện banner</button>
+      <button id="tickerBtn">Bật chữ chạy</button>
+    </div>
+    <p class="muted">Ghi chú: bản PWA này xem trước camera và bố cục overlay. Muốn phát RTMP thật lên Facebook/YouTube cần tích hợp máy chủ hoặc bộ mã hóa livestream riêng.</p>
+    <div class="notice" id="appStatus">Ứng dụng đã sẵn sàng.</div>
+  </section>
+  <aside class="panel">
+    <h2 style="margin:0 0 10px">Thiết lập nhanh</h2>
+    <div class="field"><label for="titleInput">Tiêu đề banner</label><input id="titleInput" type="text" value="LIVESTREAM TRỰC TIẾP"></div>
+    <div class="field"><label for="subInput">Nội dung phụ</label><input id="subInput" type="text" value="Cảm ơn bạn đang theo dõi!"></div>
+    <div class="field"><label for="bannerColor">Màu banner</label><input id="bannerColor" type="color" value="#2563eb"></div>
+    <div class="field"><label for="logoInput">Logo (PNG/JPG)</label><input id="logoInput" type="file" accept="image/*"></div>
+    <div id="logoPreview" class="muted">Chưa chọn logo.</div>
+    <div class="field"><label for="tickerInput">Nội dung chữ chạy</label><input id="tickerInput" type="text" value="🔥 Chào mừng bạn đến với buổi livestream! 🔥"></div>
+    <div class="field"><label for="quality">Chất lượng xem trước</label><select id="quality"><option>720p</option><option selected>1080p</option></select></div>
+    <p class="muted">Để camera hoạt động, hãy mở ứng dụng bằng HTTPS và cấp quyền camera khi trình duyệt hỏi.</p>
+  </aside>
+</main>
+<script>
+(() => {
+  const video = document.getElementById('camera');
+  const status = document.getElementById('appStatus');
+  let stream = null, facing = 'user', bannerOn = false, tickerOn = false, live = false;
+  async function startCamera(){
+    try{
+      if(stream) stream.getTracks().forEach(t=>t.stop());
+      stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:facing},audio:false});
+      video.srcObject = stream;
+      document.getElementById('previewHint').style.display='none';
+      document.getElementById('cameraBtn').textContent='Tắt camera';
+      status.textContent='Camera đang hoạt động.';
+    }catch(e){status.textContent='Không mở được camera: '+e.message;}
+  }
+  function stopCamera(){
+    if(stream) stream.getTracks().forEach(t=>t.stop());
+    stream=null; video.srcObject=null;
+    document.getElementById('previewHint').style.display='block';
+    document.getElementById('cameraBtn').textContent='Bật camera';
+    status.textContent='Camera đã tắt.';
+  }
+  document.getElementById('cameraBtn').onclick=()=>stream?stopCamera():startCamera();
+  document.getElementById('flipBtn').onclick=()=>{facing=facing==='user'?'environment':'user';if(stream)startCamera();};
+  document.getElementById('bannerBtn').onclick=()=>{
+    bannerOn=!bannerOn; const b=document.getElementById('banner');
+    b.style.display=bannerOn?'block':'none'; document.getElementById('bannerBtn').textContent=bannerOn?'Ẩn banner':'Hiện banner';
+    document.getElementById('bannerTitle').textContent=document.getElementById('titleInput').value;
+    document.getElementById('bannerSub').textContent=document.getElementById('subInput').value;
+    b.style.background=document.getElementById('bannerColor').value;
+  };
+  document.getElementById('tickerBtn').onclick=()=>{
+    tickerOn=!tickerOn; const t=document.getElementById('ticker');
+    t.style.display=tickerOn?'block':'none';t.textContent=document.getElementById('tickerInput').value;
+    document.getElementById('tickerBtn').textContent=tickerOn?'Tắt chữ chạy':'Bật chữ chạy';
+  };
+  document.getElementById('logoInput').onchange=e=>{
+    const f=e.target.files[0]; if(!f)return;
+    const img=document.createElement('img'); img.src=URL.createObjectURL(f); img.alt='Logo đã chọn'; img.style.maxWidth='110px';img.style.maxHeight='70px';
+    const p=document.getElementById('logoPreview');p.replaceChildren(img);
+  };
+  document.getElementById('liveBtn').onclick=()=>{
+    live=!live; document.getElementById('liveBtn').textContent=live?'DỪNG':'BẮT ĐẦU PHÁT';
+    status.textContent=live?'Chế độ xem trước được bật; chưa kết nối RTMP thật.':'Đã dừng chế độ xem trước.';
+  };
+  if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+    window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(e=>console.error('SW:',e)));
+  }
+})();
+</script>
+</body>
+</html>
