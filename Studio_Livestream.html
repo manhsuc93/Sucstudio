@@ -47,7 +47,7 @@
           .studio-sidebar { order:1; width:100% !important; max-height:none !important; overflow:visible !important; border-right:0 !important; }
           .studio-workspace > aside:not(.studio-sidebar) { order:2; width:100% !important; }
           .studio-workspace > main { align-items:center; gap:10px; }
-          .studio-workspace > main > .aspect-video { width:min(100%, calc(62dvh * 9 / 16)); max-width:none; min-height:220px; max-height:62dvh; flex:none; aspect-ratio:9/16; }
+          .studio-workspace > main > .aspect-video { width:min(100%, calc(62dvh * 9 / 16)); max-width:none; min-width:0; min-height:0; max-height:62dvh; height:auto; flex:none; aspect-ratio:9/16; }
           #studioCanvas { display:block; position:absolute; inset:0; width:100%; height:100%; aspect-ratio:9/16; pointer-events:none; }
           #liveAlert { position:relative; inset:auto; z-index:30; display:flex; width:100%; max-width:720px; max-height:24dvh; min-height:42px; overflow:auto; overflow-wrap:anywhere; animation:none; margin:0; }
           header { position:sticky; top:0; padding-top:max(.5rem, env(safe-area-inset-top)); }
@@ -447,7 +447,22 @@
       function setCanvasRatio(ratio){
         canvasRatio=ratio==='16:9'?'16:9':'9:16';
         const frame=canvas.parentElement;
-        if(frame){frame.style.aspectRatio=canvasRatio==='9:16'?'9 / 16':'16 / 9';}
+        if(frame){
+          frame.style.aspectRatio=canvasRatio==='9:16'?'9 / 16':'16 / 9';
+          // On phones, size the frame from its selected ratio so landscape mode
+          // uses the available screen width instead of retaining portrait width.
+          if(window.matchMedia('(max-width: 767px)').matches){
+            frame.style.width=canvasRatio==='9:16'
+              ? 'min(100%, calc(62dvh * 9 / 16))'
+              : 'min(100%, calc(62dvh * 16 / 9))';
+            frame.style.minHeight='0';
+            frame.style.maxHeight='62dvh';
+          }else{
+            frame.style.width='';
+            frame.style.minHeight='';
+            frame.style.maxHeight='';
+          }
+        }
         resizeCanvas(); tickerX=canvas.width;
       }
       function resizeCanvas(){
@@ -488,7 +503,10 @@
             if (!deviceId) throw firstError;
             webcamStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'user'},width:{ideal:1280},height:{ideal:720}},audio:false});
           }
-          webcamVideo.srcObject=webcamStream; webcamVideo.style.opacity='1'; screenVideo.style.opacity='0';
+          webcamVideo.srcObject=webcamStream;
+          webcamVideo.style.display='block';
+          webcamVideo.style.opacity='1';
+          screenVideo.style.opacity='0';
           // Wait for metadata before asking Safari to play/decode the camera frames.
           if(webcamVideo.readyState < 1){
             await new Promise((resolve,reject)=>{
@@ -503,7 +521,15 @@
           isCamOn=true; btn.classList.add('bg-emerald-600','text-white');txt.textContent='Tắt Cam';
           await enumerateCameras(); setStatus(`Camera đang hoạt động · ${webcamVideo.videoWidth}×${webcamVideo.videoHeight}`);
           webcamStream.getVideoTracks()[0]?.addEventListener('ended',()=>{if(isCamOn)stopCamera();});
-        }catch(err){if(webcamStream){webcamStream.getTracks().forEach(t=>t.stop());webcamStream=null;}webcamVideo.srcObject=null;isCamOn=false;setStatus(cameraError(err));}
+        }catch(err){
+          if(webcamStream){webcamStream.getTracks().forEach(t=>t.stop());webcamStream=null;}
+          webcamVideo.style.opacity='0';
+          webcamVideo.srcObject=null;
+          isCamOn=false;
+          btn.classList.remove('bg-emerald-600','text-white');
+          txt.textContent='Bật Cam';
+          setStatus(cameraError(err));
+        }
       }
       function cameraError(err){
         if(err.name==='NotAllowedError'||err.name==='SecurityError') return 'Chưa được cấp quyền camera. Hãy cho phép Camera trong cài đặt Safari/Chrome.';
