@@ -33,3 +33,9 @@ Bản này là **studio xem trước / dựng hình tại trình duyệt**, chư
 
 ## Lưu ý bảo mật
 Không công khai Stream Key, mật khẩu hoặc thông tin truy cập máy chủ. Dùng backend để lưu bí mật và cấp token ngắn hạn cho client.
+
+
+## Sửa lỗi camera iPhone (v4)
+- Video nguồn camera không còn dùng `display:none`; Safari iOS cần phần tử video có thể được giải mã để Canvas đọc được khung hình.
+- Chờ `loadedmetadata`, gọi `video.play()` và xác nhận `videoWidth/videoHeight` trước khi báo camera hoạt động.
+- Đổi cache Service Worker sang v4 để trình duyệt nhận bản cập nhật.

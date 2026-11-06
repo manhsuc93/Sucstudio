@@ -199,8 +199,13 @@
                 <canvas id="studioCanvas" class="w-full h-full object-contain"></canvas>
 
                 <!-- Hidden video elements for processing sources -->
-                <video id="webcamVideo" autoplay playsinline muted class="hidden"></video>
-                <video id="screenVideo" autoplay playsinline muted class="hidden"></video>
+                <!-- Keep source videos rendered off-screen: iOS Safari may not decode display:none videos. -->
+                <video id="webcamVideo" autoplay playsinline webkit-playsinline muted
+                    style="position:fixed;left:-10000px;top:0;width:2px;height:2px;opacity:.01;pointer-events:none;"
+                    aria-hidden="true"></video>
+                <video id="screenVideo" autoplay playsinline webkit-playsinline muted
+                    style="position:fixed;left:-10000px;top:0;width:2px;height:2px;opacity:.01;pointer-events:none;"
+                    aria-hidden="true"></video>
 
                 <!-- Overlay Watermark / Studio Badge -->
                 <div class="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 flex items-center gap-2 text-xs font-medium text-white shadow-lg pointer-events-none">
@@ -459,16 +464,33 @@
         if(!navigator.mediaDevices?.getUserMedia){setStatus('Trình duyệt này không hỗ trợ camera. Hãy dùng Safari hoặc Chrome phiên bản mới qua HTTPS.');return;}
         try{
           const deviceId=document.getElementById('cameraSelect').value;
-          const video=deviceId?{deviceId:{exact:deviceId},width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30,max:30}}:{facingMode:{ideal:'user'},width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30,max:30}};
+          // iPhone Safari is more reliable when starting with a facingMode constraint.
+          const video=deviceId
+            ? {deviceId:{exact:deviceId},width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30,max:30}}
+            : {facingMode:{ideal:'user'},width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30,max:30}};
+          webcamVideo.autoplay=true;
+          webcamVideo.muted=true;
+          webcamVideo.playsInline=true;
           webcamStream=await navigator.mediaDevices.getUserMedia({video,audio:false});
-          webcamVideo.srcObject=webcamStream; await webcamVideo.play().catch(()=>{});
+          webcamVideo.srcObject=webcamStream;
+          // Wait for metadata before asking Safari to play/decode the camera frames.
+          if(webcamVideo.readyState < 1){
+            await new Promise((resolve,reject)=>{
+              const timeout=setTimeout(()=>reject(new Error('Camera mở được nhưng không nhận được khung hình. Hãy tải lại trang và thử lại.')),8000);
+              webcamVideo.addEventListener('loadedmetadata',()=>{clearTimeout(timeout);resolve();},{once:true});
+              webcamVideo.addEventListener('error',()=>{clearTimeout(timeout);reject(new Error('Không đọc được luồng video từ camera.'));},{once:true});
+            });
+          }
+          await webcamVideo.play();
+          if(!webcamVideo.videoWidth || !webcamVideo.videoHeight) throw new Error('Camera chưa cung cấp hình ảnh. Hãy thử đổi camera trước/sau.');
           isCamOn=true; btn.classList.add('bg-emerald-600','text-white');txt.textContent='Tắt Cam';
-          await enumerateCameras(); setStatus('Camera đang hoạt động.');
+          await enumerateCameras(); setStatus(`Camera đang hoạt động · ${webcamVideo.videoWidth}×${webcamVideo.videoHeight}`);
           webcamStream.getVideoTracks()[0]?.addEventListener('ended',()=>{if(isCamOn)stopCamera();});
-        }catch(err){setStatus(cameraError(err));}
+        }catch(err){if(webcamStream){webcamStream.getTracks().forEach(t=>t.stop());webcamStream=null;}webcamVideo.srcObject=null;isCamOn=false;setStatus(cameraError(err));}
       }
       function cameraError(err){
-        if(err.name==='NotAllowedError'||err.name==='SecurityError') return 'Chưa được cấp quyền camera. Hãy cho phép Camera trong cài đặt trình duyệt.';
+        if(err.name==='NotAllowedError'||err.name==='SecurityError') return 'Chưa được cấp quyền camera. Hãy cho phép Camera trong cài đặt Safari/Chrome.';
+        if(err.name==='AbortError') return 'Camera bị gián đoạn. Hãy đóng ứng dụng khác đang dùng camera rồi thử lại.';
         if(err.name==='NotFoundError') return 'Không tìm thấy camera trên thiết bị.';
         if(err.name==='NotReadableError') return 'Camera đang được ứng dụng khác sử dụng.';
         return 'Không thể mở camera: '+err.message;
@@ -518,7 +540,7 @@
         if(now-lastDraw<33)return; lastDraw=now; // cap preview composition to ~30fps to reduce mobile heat
         ctx.fillStyle='#090d16';ctx.fillRect(0,0,canvas.width,canvas.height);
         if(isScreenSharing&&screenVideo.readyState>=2){try{ctx.drawImage(screenVideo,0,0,canvas.width,canvas.height);}catch(e){}}
-        if(isCamOn&&webcamVideo.readyState>=2){try{if(isScreenSharing){const pw=420,ph=236,px=canvas.width-pw-36,py=canvas.height-ph-36;ctx.save();ctx.shadowColor='#000';ctx.shadowBlur=24;ctx.drawImage(webcamVideo,px,py,pw,ph);ctx.strokeStyle='#fff';ctx.lineWidth=5;ctx.strokeRect(px,py,pw,ph);ctx.restore();}else{ctx.drawImage(webcamVideo,0,0,canvas.width,canvas.height);}}catch(e){}}
+        if(isCamOn&&webcamVideo.readyState>=2&&webcamVideo.videoWidth>0){try{if(isScreenSharing){const pw=420,ph=236,px=canvas.width-pw-36,py=canvas.height-ph-36;ctx.save();ctx.shadowColor='#000';ctx.shadowBlur=24;ctx.drawImage(webcamVideo,px,py,pw,ph);ctx.strokeStyle='#fff';ctx.lineWidth=5;ctx.strokeRect(px,py,pw,ph);ctx.restore();}else{ctx.drawImage(webcamVideo,0,0,canvas.width,canvas.height);}}catch(e){}}
         if(!isCamOn&&!isScreenSharing){ctx.fillStyle='#94a3b8';ctx.font='600 36px Inter, sans-serif';ctx.textAlign='center';ctx.fillText('BẬT CAMERA HOẶC CHIA SẺ MÀN HÌNH',canvas.width/2,canvas.height/2);}
         if(showBanner){const title=document.getElementById('overlayTitle')?.value||'LIVESTREAM TRỰC TIẾP';const sub=document.getElementById('overlaySubtitle')?.value||'';const color=document.getElementById('bannerBgColor')?.value||'#2563eb';const x=80,y=canvas.height-220,w=800;ctx.fillStyle=color;ctx.fillRect(x,y,w,65);ctx.fillStyle='#fff';ctx.font='bold 30px Inter, sans-serif';ctx.textAlign='left';ctx.fillText(title.toUpperCase().slice(0,55),x+25,y+44);ctx.fillStyle='#0f172a';ctx.fillRect(x,y+65,w-100,45);ctx.fillStyle='#cbd5e1';ctx.font='500 22px Inter, sans-serif';ctx.fillText(sub.slice(0,85),x+25,y+95);}
         if(showScoreboard){const a=(document.getElementById('teamAName')?.value||'ĐỘI A').toUpperCase().slice(0,14),b=(document.getElementById('teamBName')?.value||'ĐỘI B').toUpperCase().slice(0,14);const x=80,y=60;ctx.fillStyle='rgba(15,23,42,.92)';ctx.fillRect(x,y,520,60);ctx.fillStyle='#2563eb';ctx.fillRect(x,y,180,60);ctx.fillStyle='#fff';ctx.font='bold 20px Inter';ctx.textAlign='center';ctx.fillText(a,x+90,y+38);ctx.font='bold 32px Inter';ctx.fillText(scoreA,x+215,y+43);ctx.fillText('-',x+260,y+40);ctx.fillText(scoreB,x+305,y+43);ctx.fillStyle='#dc2626';ctx.fillRect(x+340,y,180,60);ctx.fillStyle='#fff';ctx.font='bold 20px Inter';ctx.fillText(b,x+430,y+38);}
