@@ -1,28 +1,29 @@
-# Live Studio V15 — iPhone + WHIP/WebRTC Multi-stream
+LIVE STUDIO V16 — CAPACITOR ANDROID / IOS
+=========================================
 
-## Ứng dụng
-- Mở `Studio_Livestream.html` hoặc trang GitHub Pages (index tự chuyển tới studio).
-- Dùng Safari trên iPhone qua HTTPS; cấp quyền Camera và Micro.
-- Vùng xem trước camera hiển thị camera; chương trình gửi đi được ghép từ camera/chia sẻ màn hình + overlay canvas.
-- Chuyển luồng đến máy chủ bằng WHIP/WebRTC. Nút BẮT ĐẦU PHÁT thực hiện POST WHIP; nút KẾT THÚC PHÁT đóng phiên WHIP.
-- Chọn 1080p30 (4.5 Mbps) hoặc 720p30 (2.5 Mbps). iPhone và mạng di động có thể không duy trì được 1080p ổn định.
+ỨNG DỤNG
+- Giao diện Live Studio được đóng gói bằng Capacitor cho Android và iOS.
+- Bật camera/micro, ghép hình với overlay (banner, logo, chữ chạy, bảng điểm), ghi REC cục bộ.
+- Gửi một luồng WebRTC/WHIP từ điện thoại lên VPS.
+- Người dùng chọn thủ công MỘT đích phát: YouTube Live, Facebook Live hoặc RTMP tùy chỉnh.
+- Không có chat mạng xã hội, không đọc bình luận và không phát đồng thời nhiều đích.
 
-## Phát đồng thời YouTube + Facebook
-Cần triển khai máy chủ MediaMTX + FFmpeg + Caddy trong thư mục `server/`. Đọc `server/README-VI.txt` để cài đặt từng bước.
-- Live Studio gửi một luồng WebRTC/WHIP đến VPS.
-- VPS chuyển âm thanh Opus sang AAC rồi gửi RTMPS tới YouTube và Facebook.
-- Khóa phát YouTube/Facebook và mật khẩu relay phải chỉ lưu trên VPS. Không đưa khóa thật vào GitHub.
-- Trong Live Studio > Cài đặt, nhập `https://TEN-MIEN-CUA-BAN/live/whip`, tài khoản `studio` và mật khẩu VPS.
+CHỌN VÀ ĐỔI NỀN TẢNG
+1. Vào tab Đích, chọn một nền tảng.
+2. Nhập địa chỉ gốc HTTPS của VPS, ví dụ https://stream.tenmiencuaban.vn (không thêm đường dẫn).
+3. Nhập tài khoản studio và mật khẩu VPS. Khóa RTMP của từng nền tảng chỉ lưu trong mediamtx.yml trên VPS.
+4. Bật camera và micro rồi nhấn BẮT ĐẦU PHÁT.
+5. Muốn đổi nền tảng: nhấn KẾT THÚC PHÁT, chọn nền tảng mới, rồi bắt đầu lại. Không thể đổi đích trong khi đang LIVE.
 
-## Kiểm tra trước khi phát
-1. Bật Camera.
-2. Bật Micro (bắt buộc vì nền tảng cần cả audio và video).
-3. Cấu hình VPS, DNS, HTTPS và cổng UDP/TCP 8189.
-4. Nhấn BẮT ĐẦU PHÁT; chờ trạng thái WebRTC kết nối.
-5. Kiểm tra bản xem trước trong YouTube Studio và Facebook Live Producer; nhấn Go Live trên từng nền tảng nếu được yêu cầu.
+MÁY CHỦ
+- Cài MediaMTX + FFmpeg + Caddy theo server/README-VI.txt.
+- VPS có ba path độc lập: youtube, facebook, custom; mỗi path chỉ có một output RTMP.
+- Mỗi phiên WHIP chỉ kết nối vào một path theo lựa chọn trong app.
+- Không đưa stream key hoặc mật khẩu thật vào ứng dụng, GitHub hay kho công khai.
 
-## Giới hạn
-- Chưa thể xác nhận hoạt động thật cho đến khi có VPS, domain, khóa phát và kiểm tra trên iPhone thực tế.
-- Nút “Kiểm tra cấu hình WHIP” chỉ kiểm tra định dạng; không thay cho kết nối thật.
-- Nếu mạng chặn UDP/TCP 8189 hoặc NAT khó, có thể cần TURN server (Coturn).
-- Chức năng chia sẻ màn hình trên iOS bị giới hạn theo phiên bản Safari/iOS.
+GIỚI HẠN VÀ KIỂM THỬ
+- Cần VPS, domain, khóa phát và kiểm thử thực tế trên Android/iPhone.
+- Nút kiểm tra cấu hình chỉ kiểm tra định dạng, không xác nhận khóa RTMP.
+- Ghi hình sử dụng MediaRecorder; thời lượng dài và lưu nền cần kiểm thử/triển khai native riêng.
+- Chia sẻ màn hình và phát nền bị giới hạn theo hệ điều hành.
+- Xem README-CAPACITOR-VI.md để tạo dự án native và ký APK/IPA.
