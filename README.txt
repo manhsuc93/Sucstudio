@@ -1,35 +1,28 @@
-# Live Studio — Mobile PWA
+# Live Studio V15 — iPhone + WHIP/WebRTC Multi-stream
 
-Bản nâng cấp từ mã nguồn ban đầu, hướng tới iPhone và Android.
+## Ứng dụng
+- Mở `Studio_Livestream.html` hoặc trang GitHub Pages (index tự chuyển tới studio).
+- Dùng Safari trên iPhone qua HTTPS; cấp quyền Camera và Micro.
+- Vùng xem trước camera hiển thị camera; chương trình gửi đi được ghép từ camera/chia sẻ màn hình + overlay canvas.
+- Chuyển luồng đến máy chủ bằng WHIP/WebRTC. Nút BẮT ĐẦU PHÁT thực hiện POST WHIP; nút KẾT THÚC PHÁT đóng phiên WHIP.
+- Chọn 1080p30 (4.5 Mbps) hoặc 720p30 (2.5 Mbps). iPhone và mạng di động có thể không duy trì được 1080p ổn định.
 
-## Cài đặt / chạy thử
-1. Đưa toàn bộ thư mục lên hosting có HTTPS (GitHub Pages, Netlify hoặc hosting tương đương).
-2. Mở `Studio_Livestream.html` hoặc truy cập thư mục gốc (tự chuyển tới studio).
-3. Cấp quyền camera/micro. Trên iPhone dùng Safari; trên Android dùng Chrome phiên bản mới.
-4. Có thể thêm ứng dụng vào màn hình chính từ menu trình duyệt.
+## Phát đồng thời YouTube + Facebook
+Cần triển khai máy chủ MediaMTX + FFmpeg + Caddy trong thư mục `server/`. Đọc `server/README-VI.txt` để cài đặt từng bước.
+- Live Studio gửi một luồng WebRTC/WHIP đến VPS.
+- VPS chuyển âm thanh Opus sang AAC rồi gửi RTMPS tới YouTube và Facebook.
+- Khóa phát YouTube/Facebook và mật khẩu relay phải chỉ lưu trên VPS. Không đưa khóa thật vào GitHub.
+- Trong Live Studio > Cài đặt, nhập `https://TEN-MIEN-CUA-BAN/live/whip`, tài khoản `studio` và mật khẩu VPS.
 
-## Đã nâng cấp
-- PWA mở thống nhất vào `Studio_Livestream.html`; manifest, scope và service worker dùng chung.
-- Giao diện có safe-area và bố cục thích ứng màn hình điện thoại.
-- Camera có ràng buộc độ phân giải/FPS hợp lý, đổi thiết bị, thông báo lỗi quyền và giải phóng track.
-- Micro có khử vọng/giảm ồn, gain thực, đồng hồ mức âm thanh và giải phóng stream/AudioContext khi tắt.
-- Chia sẻ màn hình có kiểm tra hỗ trợ và xử lý khi người dùng dừng chia sẻ. Tính năng này bị giới hạn trên một số trình duyệt di động, đặc biệt iOS.
-- Canvas dựng hình giới hạn khoảng 30 FPS để giảm tải; logo giới hạn 5 MB.
-- Tin nhắn người dùng được đưa vào DOM bằng `textContent` để tránh XSS.
-- Không nhúng Stream Key mẫu trong mã nguồn.
+## Kiểm tra trước khi phát
+1. Bật Camera.
+2. Bật Micro (bắt buộc vì nền tảng cần cả audio và video).
+3. Cấu hình VPS, DNS, HTTPS và cổng UDP/TCP 8189.
+4. Nhấn BẮT ĐẦU PHÁT; chờ trạng thái WebRTC kết nối.
+5. Kiểm tra bản xem trước trong YouTube Studio và Facebook Live Producer; nhấn Go Live trên từng nền tảng nếu được yêu cầu.
 
-## Giới hạn cần hiểu rõ
-Bản này là **studio xem trước / dựng hình tại trình duyệt**, chưa phải bộ phát RTMP hoàn chỉnh. Nút phát không giả vờ báo LIVE. `getProgramStream()` cung cấp MediaStream đã ghép hình Canvas và track micro để tích hợp encoder/gateway sau này.
-
-Để phát thật lên YouTube/Facebook/RTMP cần một trong các phương án: (a) ứng dụng native với encoder phần cứng và dịch vụ RTMP; hoặc (b) backend WebRTC ingest/gateway chuyển tiếp sang RTMP (ví dụ MediaMTX/FFmpeg) cùng xác thực an toàn. Trình duyệt không thể gửi RTMP trực tiếp chỉ bằng URL và Stream Key. Không đưa Stream Key thật vào GitHub hoặc localStorage.
-
-## Kiểm thử khuyến nghị
-- iPhone Safari và Android Chrome qua HTTPS.
-- Camera trước/sau, từ chối quyền, camera đang được ứng dụng khác dùng.
-- Bật/tắt mic nhiều lần, kiểm tra đèn mic và meter.
-- Dừng chia sẻ màn hình từ thanh hệ thống.
-- Xoay màn hình, chuyển nền rồi quay lại.
-- Kiểm tra PWA cập nhật sau khi tăng `CACHE_NAME` trong `sw.js`.
-
-## Lưu ý bảo mật
-Không công khai Stream Key, mật khẩu hoặc thông tin truy cập máy chủ. Dùng backend để lưu bí mật và cấp token ngắn hạn cho client.
+## Giới hạn
+- Chưa thể xác nhận hoạt động thật cho đến khi có VPS, domain, khóa phát và kiểm tra trên iPhone thực tế.
+- Nút “Kiểm tra cấu hình WHIP” chỉ kiểm tra định dạng; không thay cho kết nối thật.
+- Nếu mạng chặn UDP/TCP 8189 hoặc NAT khó, có thể cần TURN server (Coturn).
+- Chức năng chia sẻ màn hình trên iOS bị giới hạn theo phiên bản Safari/iOS.

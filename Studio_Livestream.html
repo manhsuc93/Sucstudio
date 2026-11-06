@@ -392,42 +392,31 @@
                     <button onclick="toggleChatOnStream()" id="toggleChatOverlayBtn" class="w-full bg-slate-800 hover:bg-slate-700 text-xs py-2 rounded-lg text-slate-300 border border-studio-border">Hiện Chat lên Stream Canvas</button>
                 </div>
 
-                <!-- 4. STREAM DESTINATION & RTMP SETTINGS -->
+                <!-- 4. WEBRTC / WHIP GATEWAY SETTINGS -->
                 <div id="content-settings" class="space-y-4 hidden">
                     <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                        <i data-lucide="radio" class="w-4 h-4 text-red-400"></i> Cấu hình Cổng Phát (RTMP)
+                        <i data-lucide="radio" class="w-4 h-4 text-red-400"></i> Kết nối máy chủ phát đồng thời
                     </label>
-
-                    <div class="space-y-3 text-xs">
-                        <div>
-                            <label class="text-slate-400 block mb-1">Nền tảng Livestream</label>
-                            <select id="platformSelect" onchange="updatePlatformPreset()" class="w-full bg-slate-900 border border-studio-border rounded-lg p-2.5 text-slate-200 focus:outline-none">
-                                <option value="youtube">YouTube Live</option>
-                                <option value="facebook">Facebook Live</option>
-                                <option value="twitch">Twitch Stream</option>
-                                <option value="custom">Custom RTMP Server</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="text-slate-400 block mb-1">RTMP Server URL</label>
-                            <input type="text" id="rtmpUrl" class="w-full bg-slate-900 border border-studio-border rounded-lg p-2.5 text-slate-200 focus:outline-none font-mono text-[11px]" value="rtmp://a.rtmp.youtube.com/live2">
-                        </div>
-
-                        <div>
-                            <label class="text-slate-400 block mb-1">Stream Key (Khóa luồng)</label>
-                            <input type="password" id="streamKey" class="w-full bg-slate-900 border border-studio-border rounded-lg p-2.5 text-slate-200 focus:outline-none font-mono text-[11px]" value="" placeholder="Dán khóa luồng tại đây (không lưu trên GitHub)" autocomplete="off">
-                        </div>
-
-                        <div class="pt-2">
-                            <label class="text-slate-400 block mb-1">Stream Quality Presets</label>
-                            <select class="w-full bg-slate-900 border border-studio-border rounded-lg p-2.5 text-slate-200 focus:outline-none">
-                                <option>1080p 60fps (6000 Kbps)</option>
-                                <option selected>1080p 30fps (4500 Kbps)</option>
-                                <option>720p 30fps (2500 Kbps)</option>
-                            </select>
-                        </div>
+                    <div class="rounded-xl border border-blue-500/30 bg-blue-950/30 p-3 text-[11px] leading-relaxed text-blue-100">
+                        Live Studio gửi một luồng WebRTC/WHIP đến máy chủ. Máy chủ sẽ chuyển tiếp đến YouTube và Facebook. Không nhập khóa YouTube/Facebook ở đây.
                     </div>
+                    <div class="space-y-2 text-xs">
+                        <label class="text-slate-400 block" for="whipEndpoint">Địa chỉ WHIP của máy chủ</label>
+                        <input id="whipEndpoint" type="url" inputmode="url" autocomplete="url" placeholder="https://stream.tenmiencuaban.vn/live/whip" class="w-full bg-slate-900 border border-studio-border rounded-lg p-2.5 text-slate-200 font-mono text-[11px]">
+                        <label class="text-slate-400 block" for="whipUsername">Tên đăng nhập máy chủ</label>
+                        <input id="whipUsername" type="text" autocomplete="username" value="studio" placeholder="studio" class="w-full bg-slate-900 border border-studio-border rounded-lg p-2.5 text-slate-200">
+                        <label class="text-slate-400 block" for="whipPassword">Mật khẩu máy chủ</label>
+                        <input id="whipPassword" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu đã đặt trên VPS" class="w-full bg-slate-900 border border-studio-border rounded-lg p-2.5 text-slate-200">
+                        <label class="text-slate-400 block" for="streamQuality">Chất lượng gửi lên máy chủ</label>
+                        <select id="streamQuality" class="w-full bg-slate-900 border border-studio-border rounded-lg p-2.5 text-slate-200">
+                            <option value="4500" selected>1080p · 30 FPS · 4.5 Mbps</option>
+                            <option value="2500">720p · 30 FPS · 2.5 Mbps</option>
+                        </select>
+                    </div>
+                    <div class="rounded-xl border border-amber-500/30 bg-amber-950/20 p-3 text-[11px] leading-relaxed text-amber-100">
+                        Trước khi phát: bật Camera và Micro. Máy chủ phải được cài HTTPS, mở cổng WebRTC UDP và cấu hình sẵn hai khóa RTMP ở phía VPS. Không chia sẻ mật khẩu VPS hoặc khóa phát.
+                    </div>
+                    <button type="button" onclick="testWhipSettings()" class="w-full bg-slate-800 border border-slate-600 rounded-lg py-2.5 text-xs font-semibold text-slate-100">Kiểm tra cấu hình WHIP</button>
                 </div>
 
             </div>
@@ -436,13 +425,16 @@
 
     <!-- JAVASCRIPT LOGIC -->
     <script>
-      // Live Studio mobile core. This build provides local preview/composition,
-      // not a direct RTMP publisher. A gateway/native encoder is required for delivery.
+      // Live Studio publisher: composites camera + overlays, then publishes via WHIP/WebRTC.
+      // RTMP destination keys remain on the MediaMTX server, never in this public page.
       let isCamOn=false, isMicOn=false, isScreenSharing=false, isLive=false;
       let showBanner=false, showTicker=false, showScoreboard=false, showChatOverlay=false;
       let webcamStream=null, screenStream=null, micStream=null, audioContext=null;
       let micSource=null, micGain=null, micAnalyser=null, micMeterFrame=0, outputAudio=null;
       let logoImage=null, tickerX=0, scoreA=0, scoreB=0, streamStartTime=null, timerInterval=null;
+      let whipPeer=null, whipSessionUrl=null, activeProgramCapture=null, activeProgramStream=null;
+      const programCanvas=document.createElement('canvas');
+      const programCtx=programCanvas.getContext('2d',{alpha:false,desynchronized:true});
       const canvas=document.getElementById('studioCanvas');
       const ctx=canvas.getContext('2d',{alpha:true,desynchronized:true});
       const desktopCanvas=document.getElementById('studioCanvasDesktop') || document.createElement('canvas');
@@ -497,6 +489,7 @@
         const portrait=canvasRatio==='9:16';
         const w=portrait?1080:1920, h=portrait?1920:1080;
         if(canvas.width!==w || canvas.height!==h){canvas.width=w;canvas.height=h;}
+        if(programCanvas.width!==w || programCanvas.height!==h){programCanvas.width=w;programCanvas.height=h;}
         if(desktopCanvas.width!==w || desktopCanvas.height!==h){desktopCanvas.width=w;desktopCanvas.height=h;}
       }
       async function enumerateCameras(){
@@ -649,6 +642,7 @@
       }
       function stopScreenShare(){screenVideo.style.opacity='0';if(screenStream)screenStream.getTracks().forEach(t=>t.stop());screenStream=null;screenVideo.srcObject=null;isScreenSharing=false;const b=document.getElementById('shareScreenBtn');b.classList.remove('bg-blue-600','text-white');document.getElementById('screenBtnText').textContent='Chia sẻ màn hình';}
       async function toggleMic(){
+        if(isLive){setStatus('Hãy kết thúc livestream trước khi thay đổi Micro.');return;}
         const btn=document.getElementById('toggleMicBtn'),txt=document.getElementById('micBtnText');
         if(isMicOn){stopMic();return;}
         if(!navigator.mediaDevices?.getUserMedia){setStatus('Trình duyệt không hỗ trợ micro.');return;}
@@ -677,36 +671,119 @@
       function toggleChatOnStream(){showChatOverlay=!showChatOverlay;document.getElementById('toggleChatOverlayBtn').textContent=showChatOverlay?'Ẩn Chat trên Stream':'Hiện Chat lên Stream Canvas';}
       function drawCanvasLoop(now){
         requestAnimationFrame(drawCanvasLoop);
-        if(now-lastDraw<33)return; lastDraw=now; // cap preview composition to ~30fps to reduce mobile heat
-        // Transparent overlay-only canvas. The actual iPhone camera video is the background layer.
+        if(now-lastDraw<33)return; lastDraw=now;
         ctx.clearRect(0,0,canvas.width,canvas.height);
-
         if(showBanner){const title=document.getElementById('overlayTitle')?.value||'LIVESTREAM TRỰC TIẾP';const sub=document.getElementById('overlaySubtitle')?.value||'';const color=document.getElementById('bannerBgColor')?.value||'#2563eb';const x=80,y=canvas.height-220,w=800;ctx.fillStyle=color;ctx.fillRect(x,y,w,65);ctx.fillStyle='#fff';ctx.font='bold 30px Inter, sans-serif';ctx.textAlign='left';ctx.fillText(title.toUpperCase().slice(0,55),x+25,y+44);ctx.fillStyle='#0f172a';ctx.fillRect(x,y+65,w-100,45);ctx.fillStyle='#cbd5e1';ctx.font='500 22px Inter, sans-serif';ctx.fillText(sub.slice(0,85),x+25,y+95);}
         if(showScoreboard){const a=(document.getElementById('teamAName')?.value||'ĐỘI A').toUpperCase().slice(0,14),b=(document.getElementById('teamBName')?.value||'ĐỘI B').toUpperCase().slice(0,14);const x=80,y=60;ctx.fillStyle='rgba(15,23,42,.92)';ctx.fillRect(x,y,520,60);ctx.fillStyle='#2563eb';ctx.fillRect(x,y,180,60);ctx.fillStyle='#fff';ctx.font='bold 20px Inter';ctx.textAlign='center';ctx.fillText(a,x+90,y+38);ctx.font='bold 32px Inter';ctx.fillText(scoreA,x+215,y+43);ctx.fillText('-',x+260,y+40);ctx.fillText(scoreB,x+305,y+43);ctx.fillStyle='#dc2626';ctx.fillRect(x+340,y,180,60);ctx.fillStyle='#fff';ctx.font='bold 20px Inter';ctx.fillText(b,x+430,y+38);}
         if(showTicker){const text=document.getElementById('tickerText')?.value||'';const y=canvas.height-50;ctx.fillStyle='rgba(15,23,42,.95)';ctx.fillRect(0,y,canvas.width,50);ctx.fillStyle='#fbbf24';ctx.font='600 22px Inter';ctx.textAlign='left';ctx.fillText(text,tickerX,y+33);tickerWidth=ctx.measureText(text).width;tickerX-=2.5;if(tickerX < -tickerWidth)tickerX=canvas.width;}
         if(logoImage){const pos=document.getElementById('logoPosition')?.value||'top-right';const w=140,h=logoImage.height/logoImage.width*w;let x=canvas.width-w-40,y=40;if(pos==='top-left')x=40;if(pos==='bottom-right')y=canvas.height-h-80;try{ctx.drawImage(logoImage,x,y,w,h);}catch(e){}}
         if(showChatOverlay){const x=canvas.width-360,y=canvas.height-400;ctx.fillStyle='rgba(15,23,42,.82)';ctx.fillRect(x,y,320,300);ctx.fillStyle='#38bdf8';ctx.font='bold 16px Inter';ctx.textAlign='left';ctx.fillText('CHAT PREVIEW (GIẢ LẬP)',x+15,y+30);ctx.fillStyle='#fff';ctx.font='14px Inter';ctx.fillText('Kết nối chat nền tảng để hiển thị thật',x+15,y+70);}
-        // Mirror the same composed overlay layer to the larger desktop program monitor.
-        if(desktopCtx && desktopCanvas.width) { desktopCtx.clearRect(0,0,desktopCanvas.width,desktopCanvas.height); desktopCtx.drawImage(canvas,0,0,desktopCanvas.width,desktopCanvas.height); }
+
+        // Final program frame: camera/screen background + transparent overlay layer.
+        programCtx.fillStyle='#000';programCtx.fillRect(0,0,programCanvas.width,programCanvas.height);
+        const source=(isScreenSharing && screenVideo.readyState>=2)?screenVideo:((isCamOn && webcamVideo.readyState>=2)?webcamVideo:null);
+        if(source && source.videoWidth && source.videoHeight){
+          const scale=Math.min(programCanvas.width/source.videoWidth,programCanvas.height/source.videoHeight);
+          const dw=source.videoWidth*scale,dh=source.videoHeight*scale;
+          try{programCtx.drawImage(source,(programCanvas.width-dw)/2,(programCanvas.height-dh)/2,dw,dh);}catch(e){}
+        }
+        programCtx.drawImage(canvas,0,0,programCanvas.width,programCanvas.height);
+        if(desktopCtx && desktopCanvas.width){desktopCtx.clearRect(0,0,desktopCanvas.width,desktopCanvas.height);desktopCtx.drawImage(canvas,0,0,desktopCanvas.width,desktopCanvas.height);}
       }
-      function toggleStream(){
-        // Do not misrepresent a local preview as a live broadcast.
-        const url=document.getElementById('rtmpUrl')?.value?.trim();
-        setStatus('Chế độ hiện tại chỉ dựng hình xem trước. Để phát thật cần kết nối encoder/gateway RTMP hoặc WebRTC; nhập URL và Stream Key trong trình duyệt không tự truyền được video.');
-        const liveBtn=document.getElementById('goLiveBtn');
-        liveBtn.innerHTML='<i data-lucide="radio" class="w-4 h-4"></i><span>CHƯA KẾT NỐI PHÁT</span>';
-        document.getElementById('liveStatusText').textContent='PREVIEW ONLY';
-        document.getElementById('liveIndicator').className='w-2.5 h-2.5 rounded-full bg-amber-400';
-        if(window.lucide)lucide.createIcons();
+      function getProgramStream(){
+        if(!programCanvas.captureStream)throw new Error('Safari này không hỗ trợ lấy hình từ canvas.');
+        if(!outputAudio || !isMicOn)throw new Error('Hãy bật Micro trước khi phát để luồng có cả âm thanh và hình ảnh.');
+        activeProgramCapture=programCanvas.captureStream(30);
+        const tracks=[...activeProgramCapture.getVideoTracks(),...outputAudio.stream.getAudioTracks()];
+        if(!tracks.some(t=>t.kind==='video')||!tracks.some(t=>t.kind==='audio'))throw new Error('Không tạo đủ luồng hình và tiếng.');
+        activeProgramStream=new MediaStream(tracks);
+        return activeProgramStream;
+      }
+      function waitForIceGathering(pc,timeoutMs=15000){
+        if(pc.iceGatheringState==='complete')return Promise.resolve();
+        return new Promise((resolve,reject)=>{
+          const timer=setTimeout(()=>{cleanup();reject(new Error('Máy chủ chưa hoàn tất tìm đường truyền WebRTC. Hãy kiểm tra mạng và cổng UDP 8189.'));},timeoutMs);
+          const check=()=>{if(pc.iceGatheringState==='complete'){cleanup();resolve();}};
+          const cleanup=()=>{clearTimeout(timer);pc.removeEventListener('icegatheringstatechange',check);};
+          pc.addEventListener('icegatheringstatechange',check);check();
+        });
+      }
+      function setLiveUi(state,message){
+        const btn=document.getElementById('goLiveBtn'),status=document.getElementById('liveStatusText'),indicator=document.getElementById('liveIndicator');
+        if(state==='live'){btn.innerHTML='<i data-lucide="square" class="w-4 h-4"></i><span>KẾT THÚC PHÁT</span>';status.textContent='ĐANG PHÁT';indicator.className='w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse';}
+        else if(state==='connecting'){btn.innerHTML='<i data-lucide="loader-circle" class="w-4 h-4 animate-spin"></i><span>ĐANG KẾT NỐI…</span>';status.textContent='ĐANG KẾT NỐI';indicator.className='w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';}
+        else{btn.innerHTML='<i data-lucide="radio" class="w-4 h-4"></i><span>BẮT ĐẦU PHÁT</span>';status.textContent='SẴN SÀNG';indicator.className='w-2.5 h-2.5 rounded-full bg-slate-500';}
+        if(window.lucide)lucide.createIcons();if(message)setStatus(message);
+      }
+      function testWhipSettings(){
+        const endpoint=document.getElementById('whipEndpoint').value.trim();
+        const user=document.getElementById('whipUsername').value.trim();
+        const pass=document.getElementById('whipPassword').value;
+        try{const u=new URL(endpoint);if(u.protocol!=='https:')throw new Error('Địa chỉ máy chủ phải bắt đầu bằng https://');if(!u.pathname.endsWith('/whip'))throw new Error('Đường dẫn WHIP cần kết thúc bằng /live/whip hoặc /ten-luong/whip.');if(!user||!pass)throw new Error('Nhập tên đăng nhập và mật khẩu máy chủ.');setStatus('Cấu hình có định dạng hợp lệ. Đây chưa phải phép thử kết nối máy chủ.');}
+        catch(e){setStatus('Cấu hình WHIP chưa hợp lệ: '+e.message);}
+      }
+      async function toggleStream(){if(isLive||whipPeer){await stopLiveStream();return;}await startLiveStream();}
+      async function startLiveStream(){
+        const endpoint=document.getElementById('whipEndpoint').value.trim();
+        const username=document.getElementById('whipUsername').value.trim();
+        const password=document.getElementById('whipPassword').value;
+        if(!isCamOn&&!isScreenSharing){setStatus('Hãy bật Camera hoặc chia sẻ màn hình trước khi phát.');return;}
+        if(!isMicOn||!outputAudio){setStatus('Hãy bật Micro trước khi phát để gửi cả hình ảnh và âm thanh.');return;}
+        if(!window.isSecureContext){setStatus('Kết nối phát cần trang HTTPS.');return;}
+        if(!endpoint||!username||!password){setStatus('Mở tab Cài đặt, nhập địa chỉ WHIP và tài khoản máy chủ.');switchTab('settings');return;}
+        let target;
+        try{target=new URL(endpoint);if(target.protocol!=='https:'||!target.pathname.endsWith('/whip'))throw new Error('Địa chỉ WHIP phải dùng HTTPS và kết thúc bằng /whip.');}
+        catch(e){setStatus('Địa chỉ WHIP không hợp lệ: '+e.message);return;}
+        if(!window.RTCPeerConnection){setStatus('Safari này không hỗ trợ WebRTC. Hãy cập nhật iOS/Safari.');return;}
+        setLiveUi('connecting','Đang tạo luồng video và âm thanh…');
+        try{
+          if(audioContext?.state==='suspended')await audioContext.resume();
+          const stream=getProgramStream();
+          const pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});whipPeer=pc;
+          stream.getTracks().forEach(track=>pc.addTrack(track,stream));
+          const videoSender=pc.getSenders().find(x=>x.track?.kind==='video');
+          if(videoSender){
+            try{
+              const transceiver=pc.getTransceivers().find(x=>x.sender===videoSender);
+              const caps=RTCRtpSender.getCapabilities?.('video')?.codecs||[];
+              const h264=caps.filter(c=>c.mimeType?.toLowerCase()==='video/h264'||c.mimeType?.toLowerCase()==='video/rtx');
+              if(transceiver?.setCodecPreferences&&h264.length)transceiver.setCodecPreferences(h264);
+            }catch(e){console.warn('Không thể ưu tiên H.264:',e);}
+            try{const params=videoSender.getParameters();params.encodings=params.encodings?.length?params.encodings:[{}];params.encodings[0].maxBitrate=Number(document.getElementById('streamQuality').value||4500)*1000;params.encodings[0].maxFramerate=30;await videoSender.setParameters(params);}catch(e){console.warn('Không đặt được bitrate tùy chỉnh:',e);}
+          }
+          pc.onconnectionstatechange=()=>{
+            if(pc.connectionState==='connected'&&isLive){if(!streamStartTime){streamStartTime=Date.now();timerInterval=setInterval(updateTimer,1000);}setLiveUi('live','Đã kết nối máy chủ nhận luồng. Máy chủ đang chuyển tiếp đến YouTube và Facebook.');}
+            else if(pc.connectionState==='failed'){setStatus('Kết nối WebRTC thất bại. Kiểm tra tên miền, HTTPS và cổng UDP 8189.');stopLiveStream(false).then(()=>setLiveUi('idle','Đã ngắt do kết nối WebRTC thất bại.'));}
+            else if(pc.connectionState==='disconnected'&&isLive)setStatus('Mạng bị gián đoạn. Đang chờ WebRTC kết nối lại…');
+          };
+          const offer=await pc.createOffer();await pc.setLocalDescription(offer);await waitForIceGathering(pc);
+          const token=username+':'+password;
+          const response=await fetch(target.href,{method:'POST',headers:{'Content-Type':'application/sdp','Accept':'application/sdp','Authorization':'Bearer '+token},body:pc.localDescription.sdp});
+          if(!response.ok){const detail=(await response.text().catch(()=>'' )).slice(0,240);throw new Error('Máy chủ trả về HTTP '+response.status+(detail?' · '+detail:''));}
+          const answer=await response.text();if(!answer.includes('v=0'))throw new Error('Máy chủ không trả về SDP hợp lệ.');
+          const locationHeader=response.headers.get('Location');whipSessionUrl=locationHeader?new URL(locationHeader,target.href).href:target.href;
+          isLive=true;
+          await pc.setRemoteDescription({type:'answer',sdp:answer});
+          if(pc.connectionState==='connected'){if(!streamStartTime){streamStartTime=Date.now();timerInterval=setInterval(updateTimer,1000);}setLiveUi('live','Đã kết nối máy chủ nhận luồng. Máy chủ đang chuyển tiếp đến YouTube và Facebook.');}
+          else setLiveUi('connecting','Đã gửi luồng lên máy chủ. Đang chờ kết nối WebRTC hoàn tất…');
+        }catch(err){console.error('WHIP publish error:',err);await stopLiveStream(false);setLiveUi('idle','Không thể bắt đầu phát: '+(err.message||err));}
+      }
+      async function stopLiveStream(update=true){
+        const endpoint=whipSessionUrl;const username=document.getElementById('whipUsername')?.value.trim()||'';const password=document.getElementById('whipPassword')?.value||'';
+        isLive=false;if(timerInterval)clearInterval(timerInterval);timerInterval=null;streamStartTime=null;document.getElementById('timerText').textContent='00:00:00';
+        if(whipPeer){whipPeer.onconnectionstatechange=null;whipPeer.close();whipPeer=null;}
+        if(activeProgramCapture){activeProgramCapture.getTracks().forEach(t=>t.stop());activeProgramCapture=null;}
+        activeProgramStream=null;
+        if(endpoint&&username&&password){try{const token=username+':'+password;await fetch(endpoint,{method:'DELETE',headers:{'Authorization':'Bearer '+token}});}catch(e){console.warn('WHIP session cleanup:',e);}}
+        whipSessionUrl=null;if(update)setLiveUi('idle','Đã kết thúc phiên phát từ Live Studio.');
       }
       function updateTimer(){if(!streamStartTime)return;const elapsed=Math.floor((Date.now()-streamStartTime)/1000);const h=String(Math.floor(elapsed/3600)).padStart(2,'0'),m=String(Math.floor(elapsed%3600/60)).padStart(2,'0'),s=String(elapsed%60).padStart(2,'0');document.getElementById('timerText').textContent=`${h}:${m}:${s}`;}
       function sendSimulatedChat(){const input=document.getElementById('simChatInput'),box=document.getElementById('chatBox');if(!input.value.trim())return;const msg=document.createElement('div');msg.className='bg-slate-900/80 p-2 rounded-lg border border-slate-800';const name=document.createElement('span');name.className='font-bold text-amber-400';name.textContent='Bạn (Host): ';const body=document.createElement('span');body.className='text-slate-300';body.textContent=input.value.trim();msg.append(name,body);box.append(msg);box.scrollTop=box.scrollHeight;input.value='';}
       function switchTab(tabId){const tabs=['overlays','scoreboard','chat','settings'];tabs.forEach(t=>{document.getElementById(`content-${t}`)?.classList.add('hidden');document.getElementById(`tab-${t}`)?.classList.remove('active','text-blue-400');document.getElementById(`tab-${t}`)?.classList.add('text-slate-400');});document.getElementById(`content-${tabId}`)?.classList.remove('hidden');document.getElementById(`tab-${tabId}`)?.classList.add('active');}
-      function updatePlatformPreset(){const p=document.getElementById('platformSelect').value, input=document.getElementById('rtmpUrl'),label=document.getElementById('destPlatformText');const presets={youtube:['rtmp://a.rtmp.youtube.com/live2','YouTube Live'],facebook:['rtmps://live-api-s.facebook.com:443/rtmp/','Facebook Live'],twitch:['rtmp://live.twitch.tv/app/','Twitch Stream'],custom:['','Custom RTMP']};input.value=presets[p][0];label.textContent=presets[p][1];}
       function clearCanvasOverlays(){showBanner=false;showTicker=false;showScoreboard=false;showChatOverlay=false;logoImage=null;}
       // Expose a composed video+mic MediaStream for a future WebRTC/encoder adapter.
       function getProgramStream(){if(!canvas.captureStream)throw new Error('Canvas captureStream không được hỗ trợ.');const tracks=[...canvas.captureStream(30).getVideoTracks()];if(outputAudio)tracks.push(...outputAudio.stream.getAudioTracks());return new MediaStream(tracks);}
-      window.addEventListener('pagehide',()=>{stopCamera();stopScreenShare();stopMic();if(timerInterval)clearInterval(timerInterval);});
+      window.addEventListener('pagehide',()=>{if(whipPeer)whipPeer.close();if(activeProgramCapture)activeProgramCapture.getTracks().forEach(t=>t.stop());stopCamera();stopScreenShare();stopMic();if(timerInterval)clearInterval(timerInterval);});
     </script>
 </body>
 </html>
