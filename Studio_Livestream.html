@@ -50,7 +50,7 @@
           .studio-workspace > aside:not(.studio-sidebar) > div:first-child::-webkit-scrollbar { display:none; }
           .studio-workspace > aside:not(.studio-sidebar) > div:first-child button { flex:0 0 auto; min-width:76px; padding:9px 13px; border:1px solid #334155; border-radius:999px; white-space:nowrap; }
           .studio-workspace > aside:not(.studio-sidebar) > div:last-child { flex:1 1 auto; min-height:0; max-height:calc(38dvh - 52px); overflow-y:auto; padding:10px 12px 14px; }
-          #cameraPreviewFrame { width:min(100%, 230px); max-height:42dvh; }
+          #cameraPreviewFrame { width:100%; max-width:100%; max-height:none; aspect-ratio:16/9; }
           #studioCanvas { display:block; position:absolute; inset:0; z-index:5; width:100%; height:100%; pointer-events:none; }
           #liveAlert { position:relative; inset:auto; z-index:30; display:flex; width:100%; max-width:720px; max-height:18dvh; min-height:36px; overflow:auto; overflow-wrap:anywhere; animation:none; margin:0; }
           header { position:sticky; top:0; padding-top:max(.5rem, env(safe-area-inset-top)); }
@@ -128,8 +128,12 @@
                         <select id="cameraSelect" onchange="if(isCamOn) switchCamera(false)" class="bg-slate-900 border border-studio-border rounded-lg text-xs p-2.5 min-w-0 flex-1 focus:outline-none focus:border-blue-500 text-slate-200">
                             <option value="">Đang tải thiết bị...</option>
                         </select>
-                        <button type="button" onclick="switchCamera(true)" class="shrink-0 bg-blue-600 active:bg-blue-700 text-white text-xs font-semibold px-3 rounded-lg" aria-label="Đổi camera trước sau">↻ Đổi Cam</button>
                     </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="selectCameraFacing('user')" class="bg-slate-800 active:bg-slate-700 border border-slate-600 text-slate-100 text-xs font-semibold py-2.5 rounded-lg">◉ Camera trước</button>
+                        <button type="button" onclick="selectCameraFacing('environment')" class="bg-blue-600 active:bg-blue-700 text-white text-xs font-semibold py-2.5 rounded-lg">◉ Camera sau</button>
+                    </div>
+                    <div class="text-[10px] text-emerald-300">Khung ngang Full HD · 1920 × 1080 · Tỷ lệ 16:9</div>
                 </div>
 
                 <!-- CAMERA LIVE PREVIEW: placed directly above the camera controls -->
@@ -138,7 +142,7 @@
                         <span class="text-xs font-semibold text-slate-200">XEM TRƯỚC CAMERA</span>
                         <span id="cameraPreviewBadge" class="text-[10px] rounded-full px-2 py-1 bg-slate-700 text-slate-300">ĐANG TẮT</span>
                     </div>
-                    <div id="cameraPreviewFrame" class="relative mx-auto w-full max-w-[230px] aspect-[9/16] overflow-hidden rounded-lg border border-slate-700 bg-black">
+                    <div id="cameraPreviewFrame" class="relative mx-auto w-full max-w-full aspect-video overflow-hidden rounded-lg border border-slate-700 bg-black">
                         <video id="webcamVideo" autoplay playsinline webkit-playsinline muted
                             style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;background:#090d16;z-index:1;"
                             aria-label="Hình ảnh xem trước camera"></video>
@@ -441,7 +445,7 @@
       let logoImage=null, tickerX=0, scoreA=0, scoreB=0, streamStartTime=null, timerInterval=null;
       const canvas=document.getElementById('studioCanvas');
       const ctx=canvas.getContext('2d',{alpha:true,desynchronized:true});
-      const desktopCanvas=document.getElementById('studioCanvasDesktop');
+      const desktopCanvas=document.getElementById('studioCanvasDesktop') || document.createElement('canvas');
       const desktopCtx=desktopCanvas.getContext('2d',{alpha:true,desynchronized:true});
       const webcamVideo=document.getElementById('webcamVideo');
       const screenVideo=document.getElementById('screenVideo');
@@ -449,7 +453,7 @@
 
       window.addEventListener('load', async()=>{
         if(window.lucide) lucide.createIcons();
-        setCanvasRatio('9:16'); resizeCanvas(); tickerX=canvas.width;
+        setCanvasRatio('16:9'); resizeCanvas(); tickerX=canvas.width;
         updateCameraPreviewState(false,'Camera chưa bật. Vùng xem trước sẽ hiển thị ngay tại đây.');
         await enumerateCameras();
         requestAnimationFrame(drawCanvasLoop);
@@ -466,7 +470,8 @@
         else if(audioContext && isMicOn && audioContext.state==='suspended') audioContext.resume().catch(()=>{});
       });
       function setStatus(message){ const el=document.getElementById('liveAlert'); const label=document.getElementById('liveAlertMessage'); const previewStatus=document.getElementById('cameraPreviewStatus'); if(el&&label){label.textContent=message;el.classList.remove('hidden');} if(previewStatus) previewStatus.textContent=message; console.info(message); }
-      let canvasRatio='9:16';
+      let canvasRatio='16:9';
+      window.preferredCameraFacing='user';
       function setCanvasRatio(ratio){
         canvasRatio=ratio==='16:9'?'16:9':'9:16';
         const frame=canvas.parentElement;
@@ -475,13 +480,13 @@
           // On phones, size the frame from its selected ratio so landscape mode
           // uses the available screen width instead of retaining portrait width.
           if(window.matchMedia('(max-width: 767px)').matches){
-            frame.style.width=canvasRatio==='9:16'
-              ? 'min(100%, calc(62dvh * 9 / 16))'
-              : 'min(100%, calc(62dvh * 16 / 9))';
+            frame.style.width='100%';
+            frame.style.maxWidth='100%';
             frame.style.minHeight='0';
-            frame.style.maxHeight='62dvh';
+            frame.style.maxHeight='none';
           }else{
             frame.style.width='';
+            frame.style.maxWidth='';
             frame.style.minHeight='';
             frame.style.maxHeight='';
           }
@@ -533,7 +538,7 @@
         if(!webcamVideo.videoWidth||!webcamVideo.videoHeight)throw new Error('Camera chưa cung cấp hình ảnh.');
         setCameraButtonState(true);
         const settings=videoTrack.getSettings?videoTrack.getSettings():{};
-        if(settings.facingMode) window.activeCameraFacing=settings.facingMode;
+        window.activeCameraFacing=settings.facingMode||window.preferredCameraFacing||'user';
         if(settings.deviceId) document.getElementById('cameraSelect').value=settings.deviceId;
         updateCameraPreviewState(true,`Đang xem camera · ${webcamVideo.videoWidth}×${webcamVideo.videoHeight}`);
         await enumerateCameras();
@@ -545,11 +550,45 @@
         if(!navigator.mediaDevices?.getUserMedia){setStatus('Safari cần quyền camera và kết nối HTTPS.');return;}
         try{
           const deviceId=document.getElementById('cameraSelect').value;
-          const common={width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30,max:30}};
-          try { await openCamera(deviceId?{...common,deviceId:{exact:deviceId}}:{...common,facingMode:{ideal:'user'}}); }
-          catch(firstError){ if(deviceId) await openCamera({...common,facingMode:{ideal:'user'}}); else throw firstError; }
+          const common={width:{ideal:1920},height:{ideal:1080},aspectRatio:{ideal:16/9},frameRate:{ideal:30,max:30}};
+          try { await openCamera(deviceId?{...common,deviceId:{exact:deviceId}}:{...common,facingMode:{ideal:window.preferredCameraFacing||'user'}}); }
+          catch(firstError){ if(deviceId) await openCamera({...common,facingMode:{ideal:window.preferredCameraFacing||'user'}}); else throw firstError; }
           setStatus('Camera đã bật. Dùng nút “Đổi Cam” để chuyển trước/sau.');
         }catch(err){if(webcamStream){webcamStream.getTracks().forEach(t=>t.stop());webcamStream=null;}webcamVideo.srcObject=null;webcamVideo.style.opacity='0';setCameraButtonState(false);updateCameraPreviewState(false,cameraError(err));setStatus(cameraError(err));}
+      }
+      async function selectCameraFacing(facing){
+        const target=(facing==='environment')?'environment':'user';
+        window.preferredCameraFacing=target;
+        if(!isCamOn){setStatus(target==='environment'?'Đã chọn camera sau. Nhấn “Bật Cam” để mở.':'Đã chọn camera trước. Nhấn “Bật Cam” để mở.');return;}
+        const oldTrack=webcamStream?.getVideoTracks?.()[0];
+        const oldSettings=oldTrack?.getSettings?oldTrack.getSettings():{};
+        const oldDeviceId=oldSettings.deviceId||'';
+        if(webcamStream){webcamStream.getTracks().forEach(t=>t.stop());webcamStream=null;}
+        webcamVideo.pause();webcamVideo.srcObject=null;webcamVideo.style.opacity='0';
+        setCameraButtonState(false);updateCameraPreviewState(false,target==='environment'?'Đang mở camera sau…':'Đang mở camera trước…');
+        const common={width:{ideal:1920},height:{ideal:1080},aspectRatio:{ideal:16/9},frameRate:{ideal:30,max:30}};
+        let lastError=null;
+        // Try the explicit facingMode first. Safari on iPhone may expose several
+        // rear lenses with device IDs, so facingMode is more reliable than cycling IDs.
+        for(const mode of [{exact:target},{ideal:target}]){
+          try{await openCamera({...common,facingMode:mode});setStatus(target==='environment'?'Đã bật camera sau.':'Đã bật camera trước.');return;}
+          catch(err){lastError=err;if(webcamStream){webcamStream.getTracks().forEach(t=>t.stop());webcamStream=null;}webcamVideo.srcObject=null;}
+        }
+        // Fallback: match device labels after permission has revealed camera names.
+        try{
+          await enumerateCameras();
+          const options=Array.from(document.getElementById('cameraSelect').options);
+          const pattern=target==='environment'?/(back|rear|environment|sau|wide|ultra)/i:/(front|user|facetime|trước)/i;
+          const match=options.find(o=>pattern.test(o.textContent||'')&&o.value&&o.value!==oldDeviceId);
+          if(match){await openCamera({...common,deviceId:{exact:match.value}});setStatus(target==='environment'?'Đã bật camera sau theo thiết bị.':'Đã bật camera trước theo thiết bị.');return;}
+        }catch(err){lastError=err;if(webcamStream){webcamStream.getTracks().forEach(t=>t.stop());webcamStream=null;}webcamVideo.srcObject=null;}
+        // Restore the previous camera if this device/browser does not expose the requested lens.
+        if(oldDeviceId){
+          try{await openCamera({...common,deviceId:{exact:oldDeviceId}});window.preferredCameraFacing=oldSettings.facingMode||window.activeCameraFacing||'user';setStatus('Thiết bị không mở được camera '+(target==='environment'?'sau':'trước')+'. Đã khôi phục camera trước đó.');return;}
+          catch(restoreError){lastError=restoreError;}
+        }
+        setCameraButtonState(false);updateCameraPreviewState(false,'Không mở được camera được chọn.');
+        setStatus('Không mở được camera '+(target==='environment'?'sau':'trước')+': '+(lastError?.message||'Safari không cung cấp camera này.'));
       }
       async function switchCamera(cycle=true){
         const select=document.getElementById('cameraSelect');
@@ -572,13 +611,13 @@
         if(webcamStream){webcamStream.getTracks().forEach(t=>t.stop());webcamStream=null;}
         webcamVideo.pause();webcamVideo.srcObject=null;webcamVideo.style.opacity='0';
         setCameraButtonState(false);updateCameraPreviewState(false,'Đang chuyển camera…');
-        const common={width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30,max:30}};
+        const common={width:{ideal:1920},height:{ideal:1080},aspectRatio:{ideal:16/9},frameRate:{ideal:30,max:30}};
         try{
           if(targetId){
             try{await openCamera({...common,deviceId:{exact:targetId}});}
-            catch(deviceError){await openCamera({...common,facingMode:{exact:targetFacing}});}
+            catch(deviceError){await openCamera({...common,facingMode:{ideal:targetFacing}});}
           } else {
-            try{await openCamera({...common,facingMode:{exact:targetFacing}});}
+            try{await openCamera({...common,facingMode:{ideal:targetFacing}});}
             catch(facingError){await enumerateCameras();const ids=Array.from(select.options).map(o=>o.value).filter(Boolean);if(ids.length>1){const idx=ids.indexOf(currentSettings.deviceId||'');await openCamera({...common,deviceId:{exact:ids[(idx+1+ids.length)%ids.length]}});}else throw facingError;}
           }
           setStatus(targetFacing==='environment'?'Đã chuyển sang camera sau.':'Đã chuyển sang camera trước.');
