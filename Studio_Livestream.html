@@ -40,15 +40,19 @@
         button { -webkit-tap-highlight-color: transparent; }
         video, canvas { max-width: 100%; }
         @media (max-width: 767px) {
-          body { min-height: 100dvh; overflow: auto !important; }
+          body { min-height:100dvh; overflow:auto !important; padding-bottom:calc(190px + env(safe-area-inset-bottom)); }
           .studio-workspace { display:flex; flex-direction:column; overflow:visible; min-height:0; }
-          /* Put the program monitor before the long control panels on phones. */
           .studio-workspace > main { display:none !important; }
           .studio-sidebar { order:1; width:100% !important; max-height:none !important; overflow:visible !important; border-right:0 !important; }
-          .studio-workspace > aside:not(.studio-sidebar) { order:2; width:100% !important; }
+          .studio-sidebar > div.p-4 { max-height:calc(100dvh - 150px); overflow-y:auto !important; }
+          .studio-workspace > aside:not(.studio-sidebar) { order:2; width:100% !important; position:fixed; left:0; right:0; bottom:0; z-index:60; max-height:38dvh; padding-bottom:env(safe-area-inset-bottom); border:1px solid #334155; border-bottom:0; border-radius:16px 16px 0 0; box-shadow:0 -12px 35px rgba(0,0,0,.45); }
+          .studio-workspace > aside:not(.studio-sidebar) > div:first-child { display:flex; overflow-x:auto; flex:0 0 auto; gap:6px; padding:8px 10px; scrollbar-width:none; }
+          .studio-workspace > aside:not(.studio-sidebar) > div:first-child::-webkit-scrollbar { display:none; }
+          .studio-workspace > aside:not(.studio-sidebar) > div:first-child button { flex:0 0 auto; min-width:76px; padding:9px 13px; border:1px solid #334155; border-radius:999px; white-space:nowrap; }
+          .studio-workspace > aside:not(.studio-sidebar) > div:last-child { flex:1 1 auto; min-height:0; max-height:calc(38dvh - 52px); overflow-y:auto; padding:10px 12px 14px; }
           #cameraPreviewFrame { width:min(100%, 230px); max-height:42dvh; }
-          #studioCanvas { display:block; position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
-          #liveAlert { position:relative; inset:auto; z-index:30; display:flex; width:100%; max-width:720px; max-height:24dvh; min-height:42px; overflow:auto; overflow-wrap:anywhere; animation:none; margin:0; }
+          #studioCanvas { display:block; position:absolute; inset:0; z-index:5; width:100%; height:100%; pointer-events:none; }
+          #liveAlert { position:relative; inset:auto; z-index:30; display:flex; width:100%; max-width:720px; max-height:18dvh; min-height:36px; overflow:auto; overflow-wrap:anywhere; animation:none; margin:0; }
           header { position:sticky; top:0; padding-top:max(.5rem, env(safe-area-inset-top)); }
           #goLiveBtn { padding:.65rem .8rem; font-size:11px; white-space:nowrap; }
         }
@@ -121,9 +125,10 @@
                 <div class="space-y-2">
                     <label class="text-xs text-slate-400 font-medium">Thiết bị Camera</label>
                     <div class="flex gap-2">
-                        <select id="cameraSelect" class="bg-slate-900 border border-studio-border rounded-lg text-xs p-2.5 w-full focus:outline-none focus:border-blue-500 text-slate-200">
+                        <select id="cameraSelect" onchange="if(isCamOn) switchCamera(false)" class="bg-slate-900 border border-studio-border rounded-lg text-xs p-2.5 min-w-0 flex-1 focus:outline-none focus:border-blue-500 text-slate-200">
                             <option value="">Đang tải thiết bị...</option>
                         </select>
+                        <button type="button" onclick="switchCamera(true)" class="shrink-0 bg-blue-600 active:bg-blue-700 text-white text-xs font-semibold px-3 rounded-lg" aria-label="Đổi camera trước sau">↻ Đổi Cam</button>
                     </div>
                 </div>
 
@@ -135,8 +140,9 @@
                     </div>
                     <div id="cameraPreviewFrame" class="relative mx-auto w-full max-w-[230px] aspect-[9/16] overflow-hidden rounded-lg border border-slate-700 bg-black">
                         <video id="webcamVideo" autoplay playsinline webkit-playsinline muted
-                            style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;background:#090d16;"
+                            style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;background:#090d16;z-index:1;"
                             aria-label="Hình ảnh xem trước camera"></video>
+                        <canvas id="studioCanvas" style="position:absolute;inset:0;width:100%;height:100%;z-index:5;pointer-events:none;"></canvas>
                         <div id="cameraPreviewPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center text-slate-400 p-3">
                             <i data-lucide="camera" class="w-10 h-10 text-emerald-400"></i>
                             <span class="text-xs font-medium">Nhấn “Bật Cam” để xem hình ảnh tại đây</span>
@@ -223,7 +229,7 @@
                 <video id="screenVideo" autoplay playsinline webkit-playsinline muted
                     style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;pointer-events:none;z-index:10;background:#090d16;"
                     aria-hidden="true"></video>
-                <canvas id="studioCanvas" class="relative z-20" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;"></canvas>
+
 
                 <!-- Overlay Watermark / Studio Badge -->
                 <div class="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 flex items-center gap-2 text-xs font-medium text-white shadow-lg pointer-events-none">
@@ -252,7 +258,7 @@
         <!-- RIGHT SIDEBAR: OVERLAYS, GRAPHICS, CHAT & DESTINATION -->
         <aside class="w-80 bg-studio-panel border-l border-studio-border flex flex-col shrink-0">
             <!-- Studio Tabs Navigation -->
-            <div class="flex border-b border-studio-border text-xs font-medium">
+            <div class="flex border-b border-studio-border text-xs font-medium" aria-label="Thanh công cụ trượt ngang">
                 <button onclick="switchTab('overlays')" id="tab-overlays" class="tab-btn active flex-1 py-3 text-center transition flex items-center justify-center gap-1.5">
                     <i data-lucide="layout" class="w-3.5 h-3.5"></i> Overlay
                 </button>
@@ -435,6 +441,8 @@
       let logoImage=null, tickerX=0, scoreA=0, scoreB=0, streamStartTime=null, timerInterval=null;
       const canvas=document.getElementById('studioCanvas');
       const ctx=canvas.getContext('2d',{alpha:true,desynchronized:true});
+      const desktopCanvas=document.getElementById('studioCanvasDesktop');
+      const desktopCtx=desktopCanvas.getContext('2d',{alpha:true,desynchronized:true});
       const webcamVideo=document.getElementById('webcamVideo');
       const screenVideo=document.getElementById('screenVideo');
       let lastDraw=0, tickerWidth=0;
@@ -484,6 +492,7 @@
         const portrait=canvasRatio==='9:16';
         const w=portrait?1080:1920, h=portrait?1920:1080;
         if(canvas.width!==w || canvas.height!==h){canvas.width=w;canvas.height=h;}
+        if(desktopCanvas.width!==w || desktopCanvas.height!==h){desktopCanvas.width=w;desktopCanvas.height=h;}
       }
       async function enumerateCameras(){
         const select=document.getElementById('cameraSelect');
@@ -506,65 +515,88 @@
         if(badge){badge.textContent=active?'ĐANG XEM':'ĐANG TẮT';badge.className=active?'text-[10px] rounded-full px-2 py-1 bg-emerald-600 text-white':'text-[10px] rounded-full px-2 py-1 bg-slate-700 text-slate-300';}
         if(status && message) status.textContent=message;
       }
+      function setCameraButtonState(active){
+        const btn=document.getElementById('toggleCamBtn'),txt=document.getElementById('camBtnText');
+        isCamOn=!!active;
+        btn.classList.toggle('bg-emerald-600',isCamOn);btn.classList.toggle('text-white',isCamOn);
+        txt.textContent=isCamOn?'Tắt Cam':'Bật Cam';
+      }
+      async function openCamera(constraints){
+        const stream=await navigator.mediaDevices.getUserMedia({video:constraints,audio:false});
+        const videoTrack=stream.getVideoTracks()[0];
+        if(!videoTrack) { stream.getTracks().forEach(t=>t.stop()); throw new Error('Không nhận được luồng video camera.'); }
+        webcamStream=stream;webcamVideo.srcObject=stream;webcamVideo.style.display='block';webcamVideo.style.opacity='1';
+        screenVideo.style.opacity='0';
+        if(webcamVideo.readyState<1){await new Promise((resolve,reject)=>{const timeout=setTimeout(()=>reject(new Error('Camera mở nhưng không gửi khung hình.')),8000);webcamVideo.addEventListener('loadedmetadata',()=>{clearTimeout(timeout);resolve();},{once:true});webcamVideo.addEventListener('error',()=>{clearTimeout(timeout);reject(new Error('Không đọc được video camera.'));},{once:true});});}
+        await webcamVideo.play();
+        await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+        if(!webcamVideo.videoWidth||!webcamVideo.videoHeight)throw new Error('Camera chưa cung cấp hình ảnh.');
+        setCameraButtonState(true);
+        const settings=videoTrack.getSettings?videoTrack.getSettings():{};
+        if(settings.facingMode) window.activeCameraFacing=settings.facingMode;
+        if(settings.deviceId) document.getElementById('cameraSelect').value=settings.deviceId;
+        updateCameraPreviewState(true,`Đang xem camera · ${webcamVideo.videoWidth}×${webcamVideo.videoHeight}`);
+        await enumerateCameras();
+        if(settings.deviceId) document.getElementById('cameraSelect').value=settings.deviceId;
+        videoTrack.addEventListener('ended',()=>{if(isCamOn)stopCamera();},{once:true});
+      }
       async function toggleCamera(){
-        const btn=document.getElementById('toggleCamBtn'), txt=document.getElementById('camBtnText');
         if(isCamOn){stopCamera();return;}
-        if(!navigator.mediaDevices?.getUserMedia){setStatus('Trình duyệt này không hỗ trợ camera. Hãy dùng Safari hoặc Chrome phiên bản mới qua HTTPS.');return;}
+        if(!navigator.mediaDevices?.getUserMedia){setStatus('Safari cần quyền camera và kết nối HTTPS.');return;}
         try{
           const deviceId=document.getElementById('cameraSelect').value;
-          // iPhone Safari is more reliable when starting with a facingMode constraint.
-          const video=deviceId
-            ? {deviceId:{exact:deviceId},width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30,max:30}}
-            : {facingMode:{ideal:'user'},width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30,max:30}};
-          webcamVideo.autoplay=true;
-          webcamVideo.muted=true;
-          webcamVideo.playsInline=true;
-          try {
-            webcamStream=await navigator.mediaDevices.getUserMedia({video,audio:false});
-          } catch (firstError) {
-            // iOS may expose a stale deviceId after permission/device enumeration.
-            if (!deviceId) throw firstError;
-            webcamStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'user'},width:{ideal:1280},height:{ideal:720}},audio:false});
+          const common={width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30,max:30}};
+          try { await openCamera(deviceId?{...common,deviceId:{exact:deviceId}}:{...common,facingMode:{ideal:'user'}}); }
+          catch(firstError){ if(deviceId) await openCamera({...common,facingMode:{ideal:'user'}}); else throw firstError; }
+          setStatus('Camera đã bật. Dùng nút “Đổi Cam” để chuyển trước/sau.');
+        }catch(err){if(webcamStream){webcamStream.getTracks().forEach(t=>t.stop());webcamStream=null;}webcamVideo.srcObject=null;webcamVideo.style.opacity='0';setCameraButtonState(false);updateCameraPreviewState(false,cameraError(err));setStatus(cameraError(err));}
+      }
+      async function switchCamera(cycle=true){
+        const select=document.getElementById('cameraSelect');
+        if(!isCamOn){
+          if(cycle && select.options.length>1) select.selectedIndex=(select.selectedIndex+1)%select.options.length;
+          setStatus('Đã chọn camera. Nhấn “Bật Cam” để mở.');return;
+        }
+        const track=webcamStream?.getVideoTracks?.()[0];
+        const currentSettings=track?.getSettings?track.getSettings():{};
+        const currentFacing=currentSettings.facingMode||window.activeCameraFacing||'user';
+        const targetFacing=currentFacing==='environment'?'user':'environment';
+        let targetId='';
+        if(cycle && select.options.length>1){
+          const currentId=currentSettings.deviceId||select.value;
+          const ids=Array.from(select.options).map(o=>o.value).filter(Boolean);
+          const index=ids.indexOf(currentId);targetId=ids[(index+1+ids.length)%ids.length]||'';
+          if(targetId) select.value=targetId;
+        } else if(!cycle) targetId=select.value;
+        // iOS Safari often requires releasing the current camera before opening the other lens.
+        if(webcamStream){webcamStream.getTracks().forEach(t=>t.stop());webcamStream=null;}
+        webcamVideo.pause();webcamVideo.srcObject=null;webcamVideo.style.opacity='0';
+        setCameraButtonState(false);updateCameraPreviewState(false,'Đang chuyển camera…');
+        const common={width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30,max:30}};
+        try{
+          if(targetId){
+            try{await openCamera({...common,deviceId:{exact:targetId}});}
+            catch(deviceError){await openCamera({...common,facingMode:{exact:targetFacing}});}
+          } else {
+            try{await openCamera({...common,facingMode:{exact:targetFacing}});}
+            catch(facingError){await enumerateCameras();const ids=Array.from(select.options).map(o=>o.value).filter(Boolean);if(ids.length>1){const idx=ids.indexOf(currentSettings.deviceId||'');await openCamera({...common,deviceId:{exact:ids[(idx+1+ids.length)%ids.length]}});}else throw facingError;}
           }
-          webcamVideo.srcObject=webcamStream;
-          webcamVideo.style.display='block';
-          webcamVideo.style.opacity='1';
-          screenVideo.style.opacity='0';
-          // Wait for metadata before asking Safari to play/decode the camera frames.
-          if(webcamVideo.readyState < 1){
-            await new Promise((resolve,reject)=>{
-              const timeout=setTimeout(()=>reject(new Error('Camera mở được nhưng không nhận được khung hình. Hãy tải lại trang và thử lại.')),8000);
-              webcamVideo.addEventListener('loadedmetadata',()=>{clearTimeout(timeout);resolve();},{once:true});
-              webcamVideo.addEventListener('error',()=>{clearTimeout(timeout);reject(new Error('Không đọc được luồng video từ camera.'));},{once:true});
-            });
-          }
-          await webcamVideo.play();
-          await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
-          if(!webcamVideo.videoWidth || !webcamVideo.videoHeight) throw new Error('Camera chưa cung cấp hình ảnh. Hãy thử đổi camera trước/sau.');
-          isCamOn=true; btn.classList.add('bg-emerald-600','text-white');txt.textContent='Tắt Cam';
-          const previewMessage=`Đang xem camera · ${webcamVideo.videoWidth}×${webcamVideo.videoHeight}`;
-          updateCameraPreviewState(true,previewMessage);
-          await enumerateCameras(); setStatus(previewMessage);
-          webcamStream.getVideoTracks()[0]?.addEventListener('ended',()=>{if(isCamOn)stopCamera();});
+          setStatus(targetFacing==='environment'?'Đã chuyển sang camera sau.':'Đã chuyển sang camera trước.');
         }catch(err){
           if(webcamStream){webcamStream.getTracks().forEach(t=>t.stop());webcamStream=null;}
-          webcamVideo.style.opacity='0';
-          webcamVideo.srcObject=null;
-          updateCameraPreviewState(false,cameraError(err));
-          isCamOn=false;
-          btn.classList.remove('bg-emerald-600','text-white');
-          txt.textContent='Bật Cam';
-          setStatus(cameraError(err));
+          webcamVideo.srcObject=null;webcamVideo.style.opacity='0';setCameraButtonState(false);
+          updateCameraPreviewState(false,'Không chuyển được camera. Hãy nhấn Bật Cam để thử lại.');
+          setStatus('Không chuyển được camera: '+err.message);
         }
       }
       function cameraError(err){
-        if(err.name==='NotAllowedError'||err.name==='SecurityError') return 'Chưa được cấp quyền camera. Hãy cho phép Camera trong cài đặt Safari/Chrome.';
-        if(err.name==='AbortError') return 'Camera bị gián đoạn. Hãy đóng ứng dụng khác đang dùng camera rồi thử lại.';
-        if(err.name==='NotFoundError') return 'Không tìm thấy camera trên thiết bị.';
-        if(err.name==='NotReadableError') return 'Camera đang được ứng dụng khác sử dụng.';
+        if(err.name==='NotAllowedError'||err.name==='SecurityError')return 'Chưa được cấp quyền camera. Hãy cho phép Camera trong cài đặt Safari.';
+        if(err.name==='AbortError')return 'Camera bị gián đoạn. Hãy đóng ứng dụng khác đang dùng camera rồi thử lại.';
+        if(err.name==='NotFoundError'||err.name==='OverconstrainedError')return 'Không tìm thấy camera phù hợp trên thiết bị.';
+        if(err.name==='NotReadableError')return 'Camera đang được ứng dụng khác sử dụng.';
         return 'Không thể mở camera: '+err.message;
       }
-      function stopCamera(){webcamVideo.style.opacity='0';if(webcamStream)webcamStream.getTracks().forEach(t=>t.stop());webcamStream=null;webcamVideo.srcObject=null;isCamOn=false;updateCameraPreviewState(false,'Camera đã tắt. Nhấn “Bật Cam” để xem lại.');document.getElementById('toggleCamBtn').classList.remove('bg-emerald-600','text-white');document.getElementById('camBtnText').textContent='Bật Cam';setStatus('Camera đã tắt.');}
+      function stopCamera(){webcamVideo.pause();webcamVideo.style.opacity='0';if(webcamStream)webcamStream.getTracks().forEach(t=>t.stop());webcamStream=null;webcamVideo.srcObject=null;setCameraButtonState(false);updateCameraPreviewState(false,'Camera đã tắt. Nhấn “Bật Cam” để xem lại.');setStatus('Camera đã tắt.');}
       async function toggleScreenShare(){
         const btn=document.getElementById('shareScreenBtn'),txt=document.getElementById('screenBtnText');
         if(isScreenSharing){stopScreenShare();return;}
@@ -607,21 +639,16 @@
       function drawCanvasLoop(now){
         requestAnimationFrame(drawCanvasLoop);
         if(now-lastDraw<33)return; lastDraw=now; // cap preview composition to ~30fps to reduce mobile heat
-        // Transparent compositor: live video remains visible underneath on iPhone Safari.
+        // Transparent overlay-only canvas. The actual iPhone camera video is the background layer.
         ctx.clearRect(0,0,canvas.width,canvas.height);
-        if(isCamOn && webcamVideo.readyState>=2 && webcamVideo.videoWidth>0){
-          const vw=webcamVideo.videoWidth, vh=webcamVideo.videoHeight;
-          const scale=Math.min(canvas.width/vw,canvas.height/vh);
-          const dw=vw*scale, dh=vh*scale;
-          ctx.fillStyle='#090d16';ctx.fillRect(0,0,canvas.width,canvas.height);
-          ctx.drawImage(webcamVideo,(canvas.width-dw)/2,(canvas.height-dh)/2,dw,dh);
-        } else if(!isScreenSharing){ctx.fillStyle='#090d16';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#cbd5e1';ctx.font='600 42px Inter, sans-serif';ctx.textAlign='center';ctx.fillText('BẬT CAMERA ĐỂ XEM TRƯỚC',canvas.width/2,canvas.height/2);} 
 
         if(showBanner){const title=document.getElementById('overlayTitle')?.value||'LIVESTREAM TRỰC TIẾP';const sub=document.getElementById('overlaySubtitle')?.value||'';const color=document.getElementById('bannerBgColor')?.value||'#2563eb';const x=80,y=canvas.height-220,w=800;ctx.fillStyle=color;ctx.fillRect(x,y,w,65);ctx.fillStyle='#fff';ctx.font='bold 30px Inter, sans-serif';ctx.textAlign='left';ctx.fillText(title.toUpperCase().slice(0,55),x+25,y+44);ctx.fillStyle='#0f172a';ctx.fillRect(x,y+65,w-100,45);ctx.fillStyle='#cbd5e1';ctx.font='500 22px Inter, sans-serif';ctx.fillText(sub.slice(0,85),x+25,y+95);}
         if(showScoreboard){const a=(document.getElementById('teamAName')?.value||'ĐỘI A').toUpperCase().slice(0,14),b=(document.getElementById('teamBName')?.value||'ĐỘI B').toUpperCase().slice(0,14);const x=80,y=60;ctx.fillStyle='rgba(15,23,42,.92)';ctx.fillRect(x,y,520,60);ctx.fillStyle='#2563eb';ctx.fillRect(x,y,180,60);ctx.fillStyle='#fff';ctx.font='bold 20px Inter';ctx.textAlign='center';ctx.fillText(a,x+90,y+38);ctx.font='bold 32px Inter';ctx.fillText(scoreA,x+215,y+43);ctx.fillText('-',x+260,y+40);ctx.fillText(scoreB,x+305,y+43);ctx.fillStyle='#dc2626';ctx.fillRect(x+340,y,180,60);ctx.fillStyle='#fff';ctx.font='bold 20px Inter';ctx.fillText(b,x+430,y+38);}
         if(showTicker){const text=document.getElementById('tickerText')?.value||'';const y=canvas.height-50;ctx.fillStyle='rgba(15,23,42,.95)';ctx.fillRect(0,y,canvas.width,50);ctx.fillStyle='#fbbf24';ctx.font='600 22px Inter';ctx.textAlign='left';ctx.fillText(text,tickerX,y+33);tickerWidth=ctx.measureText(text).width;tickerX-=2.5;if(tickerX < -tickerWidth)tickerX=canvas.width;}
         if(logoImage){const pos=document.getElementById('logoPosition')?.value||'top-right';const w=140,h=logoImage.height/logoImage.width*w;let x=canvas.width-w-40,y=40;if(pos==='top-left')x=40;if(pos==='bottom-right')y=canvas.height-h-80;try{ctx.drawImage(logoImage,x,y,w,h);}catch(e){}}
         if(showChatOverlay){const x=canvas.width-360,y=canvas.height-400;ctx.fillStyle='rgba(15,23,42,.82)';ctx.fillRect(x,y,320,300);ctx.fillStyle='#38bdf8';ctx.font='bold 16px Inter';ctx.textAlign='left';ctx.fillText('CHAT PREVIEW (GIẢ LẬP)',x+15,y+30);ctx.fillStyle='#fff';ctx.font='14px Inter';ctx.fillText('Kết nối chat nền tảng để hiển thị thật',x+15,y+70);}
+        // Mirror the same composed overlay layer to the larger desktop program monitor.
+        if(desktopCtx && desktopCanvas.width) { desktopCtx.clearRect(0,0,desktopCanvas.width,desktopCanvas.height); desktopCtx.drawImage(canvas,0,0,desktopCanvas.width,desktopCanvas.height); }
       }
       function toggleStream(){
         // Do not misrepresent a local preview as a live broadcast.
