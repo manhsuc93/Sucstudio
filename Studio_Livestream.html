@@ -196,15 +196,15 @@
             <div class="relative w-full max-w-5xl aspect-video bg-black rounded-2xl shadow-2xl overflow-hidden border border-studio-border flex items-center justify-center">
                 
                 <!-- Main Canvas Layer (Combines Camera + Overlays + Graphics) -->
-                <canvas id="studioCanvas" class="w-full h-full object-contain"></canvas>
+                <canvas id="studioCanvas" class="w-full h-full object-contain relative z-10"></canvas>
 
                 <!-- Hidden video elements for processing sources -->
                 <!-- Keep source videos rendered off-screen: iOS Safari may not decode display:none videos. -->
                 <video id="webcamVideo" autoplay playsinline webkit-playsinline muted
-                    style="position:fixed;left:-10000px;top:0;width:2px;height:2px;opacity:.01;pointer-events:none;"
+                    style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.001;pointer-events:none;z-index:0;"
                     aria-hidden="true"></video>
                 <video id="screenVideo" autoplay playsinline webkit-playsinline muted
-                    style="position:fixed;left:-10000px;top:0;width:2px;height:2px;opacity:.01;pointer-events:none;"
+                    style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.001;pointer-events:none;z-index:0;"
                     aria-hidden="true"></video>
 
                 <!-- Overlay Watermark / Studio Badge -->
@@ -471,7 +471,13 @@
           webcamVideo.autoplay=true;
           webcamVideo.muted=true;
           webcamVideo.playsInline=true;
-          webcamStream=await navigator.mediaDevices.getUserMedia({video,audio:false});
+          try {
+            webcamStream=await navigator.mediaDevices.getUserMedia({video,audio:false});
+          } catch (firstError) {
+            // iOS may expose a stale deviceId after permission/device enumeration.
+            if (!deviceId) throw firstError;
+            webcamStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'user'},width:{ideal:1280},height:{ideal:720}},audio:false});
+          }
           webcamVideo.srcObject=webcamStream;
           // Wait for metadata before asking Safari to play/decode the camera frames.
           if(webcamVideo.readyState < 1){
@@ -482,6 +488,7 @@
             });
           }
           await webcamVideo.play();
+          await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
           if(!webcamVideo.videoWidth || !webcamVideo.videoHeight) throw new Error('Camera chưa cung cấp hình ảnh. Hãy thử đổi camera trước/sau.');
           isCamOn=true; btn.classList.add('bg-emerald-600','text-white');txt.textContent='Tắt Cam';
           await enumerateCameras(); setStatus(`Camera đang hoạt động · ${webcamVideo.videoWidth}×${webcamVideo.videoHeight}`);
