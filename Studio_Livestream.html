@@ -46,8 +46,8 @@
           .studio-workspace > main { order:-1; width:100%; min-height:0; flex:none; overflow:visible; justify-content:flex-start; padding:12px; }
           .studio-sidebar { order:1; width:100% !important; max-height:none !important; overflow:visible !important; border-right:0 !important; }
           .studio-workspace > aside:not(.studio-sidebar) { order:2; width:100% !important; }
-          .studio-workspace > main > .aspect-video { width:100%; max-width:none; min-height:0; flex:none; aspect-ratio:16/9; }
-          #studioCanvas { display:block; width:100%; height:100%; aspect-ratio:16/9; }
+          .studio-workspace > main > #previewFrame { position:relative; display:block; width:100%; max-width:520px; min-height:0; height:auto; flex:none; aspect-ratio:9/16; margin:0 auto; }
+          #studioCanvas { position:absolute; inset:0; display:block; width:100%; height:100%; max-width:none; aspect-ratio:auto; }
           #liveAlert { position:fixed; top:auto; right:12px; bottom:calc(12px + env(safe-area-inset-bottom)); left:12px; z-index:60; max-width:none; max-height:35dvh; overflow:auto; overflow-wrap:anywhere; animation:none; }
           header { position:sticky; top:0; padding-top:max(.5rem, env(safe-area-inset-top)); }
           #goLiveBtn { padding:.65rem .8rem; font-size:11px; white-space:nowrap; }
@@ -198,7 +198,7 @@
         <!-- CENTER: MAIN LIVE CANVAS PREVIEW -->
         <main class="flex-1 bg-slate-950 p-4 flex flex-col items-center justify-center relative overflow-hidden">
             <!-- Studio Viewport Wrapper -->
-            <div class="relative w-full max-w-5xl aspect-video bg-black rounded-2xl shadow-2xl overflow-hidden border border-studio-border flex items-center justify-center">
+            <div id="previewFrame" class="relative w-full max-w-5xl aspect-video bg-black rounded-2xl shadow-2xl overflow-hidden border border-studio-border flex items-center justify-center">
                 
                 <!-- Main Canvas Layer (Combines Camera + Overlays + Graphics) -->
                 <canvas id="studioCanvas" class="w-full h-full object-contain relative z-10"></canvas>
@@ -439,14 +439,26 @@
         }
       });
       window.addEventListener('resize',resizeCanvas);
+      webcamVideo.addEventListener('loadedmetadata',()=>{ if(isCamOn) resizeCanvas(); });
+      webcamVideo.addEventListener('playing',()=>{ if(isCamOn) resizeCanvas(); });
       document.addEventListener('visibilitychange',()=>{
         if(document.hidden) { if(audioContext && audioContext.state==='running') audioContext.suspend().catch(()=>{}); }
         else if(audioContext && isMicOn && audioContext.state==='suspended') audioContext.resume().catch(()=>{});
       });
       function setStatus(message){ const el=document.getElementById('liveAlert'); const label=document.getElementById('liveAlertMessage'); if(el&&label){label.textContent=message;el.classList.remove('hidden');} console.info(message); }
       function resizeCanvas(){
-        // Keep a stable 16:9 program canvas; scale drawing via CSS for device size.
-        if(canvas.width!==1920 || canvas.height!==1080){canvas.width=1920;canvas.height=1080;}
+        // Match the program canvas to the active camera orientation. iPhone portrait
+        // cameras commonly report 720x1280; forcing 16:9 can crop the monitor badly.
+        const portrait = isCamOn && webcamVideo.videoWidth > 0 && webcamVideo.videoHeight > webcamVideo.videoWidth;
+        const width = portrait ? 1080 : 1920;
+        const height = portrait ? 1920 : 1080;
+        if(canvas.width!==width || canvas.height!==height){ canvas.width=width; canvas.height=height; }
+        const frame=document.getElementById('previewFrame');
+        if(frame){
+          frame.style.aspectRatio = portrait ? '9 / 16' : '16 / 9';
+          frame.style.maxWidth = portrait ? 'min(100%, 360px)' : '100%';
+        }
+        canvas.style.width='100%'; canvas.style.height='100%';
       }
       async function enumerateCameras(){
         const select=document.getElementById('cameraSelect');
@@ -494,6 +506,7 @@
           await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
           if(!webcamVideo.videoWidth || !webcamVideo.videoHeight) throw new Error('Camera chưa cung cấp hình ảnh. Hãy thử đổi camera trước/sau.');
           isCamOn=true; btn.classList.add('bg-emerald-600','text-white');txt.textContent='Tắt Cam';
+          resizeCanvas();
           await enumerateCameras(); setStatus(`Camera đang hoạt động · ${webcamVideo.videoWidth}×${webcamVideo.videoHeight}`);
           webcamStream.getVideoTracks()[0]?.addEventListener('ended',()=>{if(isCamOn)stopCamera();});
         }catch(err){if(webcamStream){webcamStream.getTracks().forEach(t=>t.stop());webcamStream=null;}webcamVideo.srcObject=null;isCamOn=false;setStatus(cameraError(err));}
@@ -505,7 +518,7 @@
         if(err.name==='NotReadableError') return 'Camera đang được ứng dụng khác sử dụng.';
         return 'Không thể mở camera: '+err.message;
       }
-      function stopCamera(){if(webcamStream)webcamStream.getTracks().forEach(t=>t.stop());webcamStream=null;webcamVideo.srcObject=null;isCamOn=false;document.getElementById('toggleCamBtn').classList.remove('bg-emerald-600','text-white');document.getElementById('camBtnText').textContent='Bật Cam';setStatus('Camera đã tắt.');}
+      function stopCamera(){if(webcamStream)webcamStream.getTracks().forEach(t=>t.stop());webcamStream=null;webcamVideo.srcObject=null;isCamOn=false;resizeCanvas();document.getElementById('toggleCamBtn').classList.remove('bg-emerald-600','text-white');document.getElementById('camBtnText').textContent='Bật Cam';setStatus('Camera đã tắt.');}
       async function toggleScreenShare(){
         const btn=document.getElementById('shareScreenBtn'),txt=document.getElementById('screenBtnText');
         if(isScreenSharing){stopScreenShare();return;}
