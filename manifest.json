@@ -1,15 +1,15 @@
 {
-  "id": "./",
-  "name": "Livestream Studio",
+  "id": "./Studio_Livestream.html",
+  "name": "Live Studio — Mobile Broadcast Studio",
   "short_name": "Live Studio",
-  "description": "Livestream Studio giúp xem trước camera, tạo banner, logo và chữ chạy cho buổi phát trực tiếp.",
+  "description": "Studio xem trước camera, âm thanh và đồ họa livestream trên iPhone và Android.",
   "lang": "vi",
-  "start_url": "./",
+  "start_url": "./Studio_Livestream.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
   "categories": [
     "video",
     "entertainment",
@@ -41,14 +41,14 @@
       "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Màn hình Livestream Studio"
+      "label": "Live Studio"
     },
     {
       "src": "./screenshots/studio-narrow.png",
       "sizes": "390x844",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Livestream Studio trên điện thoại"
+      "label": "Live Studio trên điện thoại"
     }
   ]
 }
