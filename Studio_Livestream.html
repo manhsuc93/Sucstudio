@@ -41,9 +41,14 @@
         video, canvas { max-width: 100%; }
         @media (max-width: 767px) {
           body { min-height: 100dvh; overflow: auto !important; }
-          .studio-workspace { display:flex; flex-direction:column; overflow:visible; }
-          .studio-sidebar { width:100% !important; max-height:none !important; overflow:visible !important; border-right:0 !important; }
-          #studioCanvas { width:100%; height:auto; aspect-ratio:16/9; }
+          .studio-workspace { display:flex; flex-direction:column; overflow:visible; min-height:0; }
+          /* Put the program monitor before the long control panels on phones. */
+          .studio-workspace > main { order:-1; width:100%; min-height:0; flex:none; overflow:visible; justify-content:flex-start; padding:12px; }
+          .studio-sidebar { order:1; width:100% !important; max-height:none !important; overflow:visible !important; border-right:0 !important; }
+          .studio-workspace > aside:not(.studio-sidebar) { order:2; width:100% !important; }
+          .studio-workspace > main > .aspect-video { width:100%; max-width:none; min-height:0; flex:none; aspect-ratio:16/9; }
+          #studioCanvas { display:block; width:100%; height:100%; aspect-ratio:16/9; }
+          #liveAlert { position:fixed; top:auto; right:12px; bottom:calc(12px + env(safe-area-inset-bottom)); left:12px; z-index:60; max-width:none; max-height:35dvh; overflow:auto; overflow-wrap:anywhere; animation:none; }
           header { position:sticky; top:0; padding-top:max(.5rem, env(safe-area-inset-top)); }
           #goLiveBtn { padding:.65rem .8rem; font-size:11px; white-space:nowrap; }
         }
@@ -224,12 +229,10 @@
             </div>
 
             <!-- Simulated Stream Notification/Alert Banner -->
-            <div id="liveAlert" class="hidden absolute top-8 right-8 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-2xl border border-emerald-400 flex items-center gap-3 animate-bounce">
-                <i data-lucide="check-circle" class="w-5 h-5"></i>
-                <div>
-                    <p class="font-bold text-xs">ĐÃ KẾT NỐI SERVER RTMP</p>
-                    <p class="text-[10px] text-emerald-100">Đang phát sóng trực tiếp tới các nền tảng!</p>
-                </div>
+            <div id="liveAlert" role="status" aria-live="polite" class="hidden absolute top-8 right-8 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-2xl border border-emerald-400 flex items-center gap-3">
+                <i data-lucide="info" class="w-5 h-5 shrink-0"></i>
+                <div id="liveAlertMessage" class="text-xs font-semibold min-w-0">Thông báo trạng thái</div>
+                <button type="button" aria-label="Đóng thông báo" onclick="document.getElementById('liveAlert').classList.add('hidden')" class="ml-2 shrink-0 rounded-lg px-2 py-1 bg-black/20">Đóng</button>
             </div>
         </main>
 
@@ -440,7 +443,7 @@
         if(document.hidden) { if(audioContext && audioContext.state==='running') audioContext.suspend().catch(()=>{}); }
         else if(audioContext && isMicOn && audioContext.state==='suspended') audioContext.resume().catch(()=>{});
       });
-      function setStatus(message){ const el=document.getElementById('liveAlert'); if(el){el.textContent=message;el.classList.remove('hidden');} console.info(message); }
+      function setStatus(message){ const el=document.getElementById('liveAlert'); const label=document.getElementById('liveAlertMessage'); if(el&&label){label.textContent=message;el.classList.remove('hidden');} console.info(message); }
       function resizeCanvas(){
         // Keep a stable 16:9 program canvas; scale drawing via CSS for device size.
         if(canvas.width!==1920 || canvas.height!==1080){canvas.width=1920;canvas.height=1080;}
